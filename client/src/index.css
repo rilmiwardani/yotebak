@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+:root {
+  --bg-color: #f3f4f6;
+  --text-color: #1f2937;
+  --wordle-empty: #e5e7eb;
+  --wordle-filled: #9ca3af;
+  --wordle-correct: #2b8a3e; /* Hijau daun matte, kontras & tidak nyaru dengan abu-abu */
+  --wordle-present: #d49a3b; /* Kuning matte adem (tidak silau) */
+  --wordle-absent: #6b7280;  /* Soft gray for absent */
+  --word-text: #ffffff;
+  font-family: 'Inter', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+/* Utility for Overlay background */
+.bg-magenta {
+  background-color: #FF00FF; /* Chroma Key Magenta */
+}
+
+/* Animations */
+@keyframes flip-in {
+  0% {
+    transform: rotateX(-90deg);
+  }
+  100% {
+    transform: rotateX(0);
+  }
+}
+
+.flip-animate {
+  animation: flip-in 0.5s ease-out forwards;
+}
+
+/* Win Card (Menyatu langsung sebagai overlay board game) */
+.win-card-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(12px); /* Blur bagian belakang papan */
+  border-radius: 12px;
+  border: 3px solid rgba(76, 163, 113, 0.4); /* Border hijau matte yang tegas membingkai board */
+  box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1.5rem;
+  text-align: center;
+  box-sizing: border-box;
+  opacity: 0;
+  transform: scale(0.96);
+  animation: fadeInScale 0.7s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+  overflow: hidden;
+  transition: opacity 0.6s cubic-bezier(0.19, 1, 0.22, 1), transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+.win-card-overlay.leaving {
+  opacity: 0 !important;
+  transform: scale(0.96) !important;
+}
+
+@keyframes fadeInScale {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
