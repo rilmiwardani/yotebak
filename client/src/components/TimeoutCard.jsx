@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
 
+const RESTART_DELAY = 10;
+
 export default function TimeoutCard({ show, word, onExited }) {
   const [render, setRender] = useState(show);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [countdown, setCountdown] = useState(RESTART_DELAY);
 
   useEffect(() => {
     if (show) {
       setRender(true);
       setIsLeaving(false);
+      setCountdown(RESTART_DELAY);
     } else {
       setIsLeaving(true);
       const timer = setTimeout(() => {
@@ -17,6 +21,23 @@ export default function TimeoutCard({ show, word, onExited }) {
       return () => clearTimeout(timer);
     }
   }, [show, onExited]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!render || isLeaving) return;
+
+    const interval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [render, isLeaving]);
 
   if (!render) return null;
 
@@ -57,9 +78,27 @@ export default function TimeoutCard({ show, word, onExited }) {
           </div>
         </div>
 
-        <p style={{ color: '#9ca3af', fontSize: '0.9rem', fontWeight: '600' }}>
-          Game baru akan segera dimulai...
-        </p>
+        {/* Countdown Bar */}
+        <div style={{ width: '100%', maxWidth: '280px', marginTop: '0.3rem' }}>
+          <p style={{ fontSize: '0.8rem', color: '#9ca3af', textAlign: 'center', marginBottom: '0.3rem', fontWeight: '600' }}>
+            Game baru dalam {countdown}s...
+          </p>
+          <div style={{
+            width: '100%',
+            height: '6px',
+            backgroundColor: '#e5e7eb',
+            borderRadius: '3px',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              width: `${(countdown / RESTART_DELAY) * 100}%`,
+              height: '100%',
+              background: 'linear-gradient(90deg, #f43f5e, #e11d48)',
+              transition: 'width 1s linear',
+              borderRadius: '3px'
+            }} />
+          </div>
+        </div>
       </div>
     </div>
   );

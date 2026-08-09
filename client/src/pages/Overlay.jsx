@@ -15,13 +15,13 @@ export default function Overlay() {
     status: 'playing',
     winner: null,
     maxRows: 6,
-    duration: 60,
   });
 
   const [winState, setWinState] = useState({ show: false, winner: null, word: '', mode: '' });
   const [timeoutState, setTimeoutState] = useState({ show: false, word: '' });
-  const [timeLeft, setTimeLeft] = useState(60);
-  const [totalTime, setTotalTime] = useState(60);
+
+  // TikFinity connection status
+  const tikFinityConnectedRef = useRef(false);
 
   // Word databases
   const targetWordsRef = useRef([]);
@@ -95,13 +95,14 @@ export default function Overlay() {
       connectionsRef.current.push(conn);
 
       conn.on('open', () => {
-        // Send current state
+        // Send current state + TikFinity status
         conn.send({ type: 'gameState', state: gameStateRef.current });
+        conn.send({ type: 'tikFinityStatus', connected: tikFinityConnectedRef.current });
       });
 
       conn.on('data', (data) => {
         if (data.type === 'startGame') {
-          initGame(data.mode, data.word, null, data.duration || 60);
+          initGame(data.mode, data.word);
         } else if (data.type === 'adminGuess') {
           handleChat({
             comment: data.guess,
@@ -143,6 +144,15 @@ export default function Overlay() {
     };
   }, []);
 
+  // Broadcast TikFinity status to all admin peers
+  const broadcastTikFinityStatus = (connected) => {
+    connectionsRef.current.forEach((conn) => {
+      if (conn.open) {
+        conn.send({ type: 'tikFinityStatus', connected });
+      }
+    });
+  };
+
   // 3. Connect to local TikFinity WebSocket (with retry limits)
   useEffect(() => {
     let ws;
@@ -155,6 +165,8 @@ export default function Overlay() {
       if (!isMounted || retryCount >= MAX_RETRIES) {
         if (retryCount >= MAX_RETRIES) {
           console.log('TikFinity: Max reconnect attempts reached. TikFinity tidak tersedia (ini normal jika bukan di komputer lokal).');
+          tikFinityConnectedRef.current = false;
+          broadcastTikFinityStatus(false);
         }
         return;
       }
@@ -163,12 +175,16 @@ export default function Overlay() {
         ws = new WebSocket('ws://localhost:21213/');
       } catch (e) {
         console.log('TikFinity: WebSocket constructor failed, skipping.');
+        tikFinityConnectedRef.current = false;
+        broadcastTikFinityStatus(false);
         return;
       }
 
       ws.onopen = () => {
         console.log('Connected to TikFinity local WebSocket');
-        retryCount = 0; // Reset retry count on successful connection
+        retryCount = 0;
+        tikFinityConnectedRef.current = true;
+        broadcastTikFinityStatus(true);
       };
 
       ws.onmessage = (event) => {
@@ -184,6 +200,8 @@ export default function Overlay() {
 
       ws.onclose = () => {
         if (!isMounted) return;
+        tikFinityConnectedRef.current = false;
+        broadcastTikFinityStatus(false);
         retryCount++;
         const delay = Math.min(5000 * Math.pow(1.5, retryCount - 1), 30000);
         console.log(`TikFinity connection closed. Retry ${retryCount}/${MAX_RETRIES} in ${Math.round(delay / 1000)}s...`);
@@ -191,7 +209,6 @@ export default function Overlay() {
       };
 
       ws.onerror = () => {
-        // Don't log the full error object (it's noisy in console)
         // Just let onclose handle the reconnect
       };
     };
@@ -201,53 +218,12 @@ export default function Overlay() {
     return () => {
       isMounted = false;
       if (ws) {
-        ws.onclose = null; // Prevent reconnect on unmount
+        ws.onclose = null;
         ws.close();
       }
       clearTimeout(reconnectTimeout);
     };
   }, []);
-
-  // Manage Game Timer Countdown
-  useEffect(() => {
-    if (gameState.status !== 'playing' || !gameState.duration) {
-      return;
-    }
-
-    setTimeLeft(gameState.duration);
-    setTotalTime(gameState.duration);
-
-    const interval = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          handleGameTimeout();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [gameState.targetWord, gameState.status]);
-
-  const handleGameTimeout = () => {
-    setGameState(prev => {
-      if (prev.status !== 'playing') return prev;
-      const updatedState = { ...prev, status: 'lost' };
-      broadcastState(updatedState);
-      return updatedState;
-    });
-
-    setTimeoutState({ show: true, word: gameStateRef.current.targetWord });
-
-    // Auto restart after 10 seconds
-    setTimeout(() => {
-      if (gameStateRef.current.status === 'lost') {
-        initGame(gameStateRef.current.mode, null, null, gameStateRef.current.duration);
-      }
-    }, 10000);
-  };
 
   // Broadcast state changes to all connected Admin Peers
   const broadcastState = (state) => {
@@ -282,7 +258,7 @@ export default function Overlay() {
   };
 
   // Initialize Game
-  const initGame = (mode, specificWord = null, overrideTargets = null, duration = 60) => {
+  const initGame = (mode, specificWord = null, overrideTargets = null) => {
     const targets = overrideTargets || targetWordsRef.current;
     const lastTargetWord = gameStateRef.current ? gameStateRef.current.targetWord : null;
     const word = specificWord ? specificWord.toLowerCase() : pickRandomWord(targets);
@@ -296,7 +272,6 @@ export default function Overlay() {
       status: 'playing',
       winner: null,
       maxRows: oldMaxRows,
-      duration: duration
     };
 
     if (mode === 'wordle') {
@@ -391,38 +366,6 @@ export default function Overlay() {
       </div>
 
       <div style={{ position: 'relative', width: 'fit-content', minHeight: '420px' }}>
-        {/* Countdown Timer Bar */}
-        {gameState.status === 'playing' && gameState.duration && (
-          <div style={{ width: '100%', marginBottom: '1.5rem', maxWidth: '30rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'white', fontWeight: '800', fontSize: '1.2rem', marginBottom: '0.4rem', textShadow: '1px 1px 3px rgba(0,0,0,0.9)' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>⏳ SISA WAKTU</span>
-              <span>{timeLeft}s</span>
-            </div>
-            <div style={{
-              width: '100%',
-              height: '14px',
-              backgroundColor: 'rgba(0, 0, 0, 0.4)',
-              borderRadius: '7px',
-              overflow: 'hidden',
-              border: '2px solid white',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-            }}>
-              <div 
-                className={timeLeft <= 10 ? 'pulse-warning' : ''}
-                style={{
-                  width: `${(timeLeft / totalTime) * 100}%`,
-                  height: '100%',
-                  background: timeLeft <= 10 
-                    ? 'linear-gradient(90deg, #f43f5e, #e11d48)' 
-                    : 'linear-gradient(90deg, #10b981, #059669)',
-                  transition: 'width 1s linear',
-                  borderRadius: '5px'
-                }} 
-              />
-            </div>
-          </div>
-        )}
-
         {gameState.mode === 'wordle' && (
           <WordleBoard gameState={gameState} />
         )}

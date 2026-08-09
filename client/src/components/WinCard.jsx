@@ -1,9 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import confetti from 'canvas-confetti';
 
+const RESTART_DELAY = 10;
+
 export default function WinCard({ show, winner, word, mode, onExited }) {
   const [render, setRender] = useState(show);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [countdown, setCountdown] = useState(RESTART_DELAY);
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -12,6 +15,7 @@ export default function WinCard({ show, winner, word, mode, onExited }) {
       const timer = setTimeout(() => {
         setRender(true);
         setIsLeaving(false);
+        setCountdown(RESTART_DELAY);
       }, mode === 'wordle' ? 1000 : 200);
       return () => clearTimeout(timer);
     } else {
@@ -24,6 +28,23 @@ export default function WinCard({ show, winner, word, mode, onExited }) {
       return () => clearTimeout(timer);
     }
   }, [show, mode, onExited]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!render || isLeaving) return;
+
+    const interval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [render, isLeaving]);
 
   useEffect(() => {
     if (!render || !canvasRef.current || isLeaving) return;
@@ -130,6 +151,28 @@ export default function WinCard({ show, winner, word, mode, onExited }) {
             <h3 style={{ fontSize: '1.6rem', fontWeight: '800', color: '#1f2937', marginTop: '0.05rem', maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {winner.nickname}
             </h3>
+          </div>
+        </div>
+
+        {/* Countdown Bar */}
+        <div style={{ width: '100%', maxWidth: '280px', marginTop: '0.5rem' }}>
+          <p style={{ fontSize: '0.75rem', color: '#9ca3af', textAlign: 'center', marginBottom: '0.3rem' }}>
+            Game baru dalam {countdown}s...
+          </p>
+          <div style={{
+            width: '100%',
+            height: '6px',
+            backgroundColor: '#e5e7eb',
+            borderRadius: '3px',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              width: `${(countdown / RESTART_DELAY) * 100}%`,
+              height: '100%',
+              background: 'linear-gradient(90deg, #10b981, #059669)',
+              transition: 'width 1s linear',
+              borderRadius: '3px'
+            }} />
           </div>
         </div>
       </div>

@@ -9,8 +9,7 @@ export default function AdminDashboard() {
   const [connecting, setConnecting] = useState(false);
   const [guessInput, setGuessInput] = useState('');
   const [copyStatus, setCopyStatus] = useState('');
-  const [gameDuration, setGameDuration] = useState(60);
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [tikFinityConnected, setTikFinityConnected] = useState(false);
 
   const peerRef = useRef(null);
   const connRef = useRef(null);
@@ -20,28 +19,6 @@ export default function AdminDashboard() {
     const randCode = Math.random().toString(36).substring(2, 10).toUpperCase();
     setRoomInput(randCode);
   }, []);
-
-  // Synchronized countdown timer for admin display
-  useEffect(() => {
-    if (gameState?.status !== 'playing' || !gameState?.duration) {
-      setTimeLeft(0);
-      return;
-    }
-
-    setTimeLeft(gameState.duration);
-
-    const interval = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [gameState?.targetWord, gameState?.status]);
 
   const handleConnect = (e) => {
     e.preventDefault();
@@ -71,6 +48,8 @@ export default function AdminDashboard() {
       conn.on('data', (data) => {
         if (data.type === 'gameState') {
           setGameState(data.state);
+        } else if (data.type === 'tikFinityStatus') {
+          setTikFinityConnected(data.connected);
         }
       });
 
@@ -109,7 +88,7 @@ export default function AdminDashboard() {
 
   const handleStartGame = (mode) => {
     if (connRef.current && connRef.current.open) {
-      connRef.current.send({ type: 'startGame', mode, duration: gameDuration });
+      connRef.current.send({ type: 'startGame', mode });
     }
   };
 
@@ -251,9 +230,14 @@ export default function AdminDashboard() {
           )}
 
           {connected && (
-            <p style={{ marginTop: '0.5rem', color: 'green', fontWeight: 'bold', fontSize: '0.9rem' }}>
-              🟢 Terhubung ke OBS (Kamar: {roomCode})
-            </p>
+            <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              <p style={{ color: 'green', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                🟢 Terhubung ke OBS (Kamar: {roomCode})
+              </p>
+              <p style={{ color: tikFinityConnected ? '#10b981' : '#ef4444', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                {tikFinityConnected ? '🟢 TikFinity Terhubung' : '🔴 TikFinity Tidak Terhubung'}
+              </p>
+            </div>
           )}
         </div>
       </div>
@@ -277,19 +261,6 @@ export default function AdminDashboard() {
           </div>
 
           <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1.5rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '1rem' }}>⏱️ Durasi Game (Detik):</label>
-            <select 
-              value={gameDuration} 
-              onChange={(e) => setGameDuration(parseInt(e.target.value))}
-              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', width: '100%', fontSize: '1rem', marginBottom: '1rem' }}
-            >
-              <option value={30}>30 Detik</option>
-              <option value={60}>60 Detik (Default)</option>
-              <option value={90}>90 Detik</option>
-              <option value={120}>120 Detik</option>
-              <option value={180}>180 Detik</option>
-            </select>
-
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '1rem' }}>📏 Baris Wordle di Layar:</label>
             <select 
               value={gameState?.maxRows || 6} 
@@ -331,12 +302,8 @@ export default function AdminDashboard() {
               <p><strong>Kata Target:</strong> <span style={{ textTransform: 'uppercase', fontWeight: 'bold', color: '#2b8a3e' }}>{gameState.targetWord}</span></p>
               {gameState.mode === 'anagram' && <p><strong>Huruf Acak:</strong> <span style={{ textTransform: 'uppercase', fontWeight: 'bold' }}>{gameState.scrambledWord}</span></p>}
               <p><strong>Status Game:</strong> {
-                gameState.status === 'won' ? <span style={{ color: 'green', fontWeight: 'bold' }}>Selesai (Won)</span> :
-                gameState.status === 'lost' ? <span style={{ color: '#ef4444', fontWeight: 'bold' }}>Waktu Habis (Lost)</span> : 'Bermain'
+                gameState.status === 'won' ? <span style={{ color: 'green', fontWeight: 'bold' }}>Selesai (Won)</span> : 'Bermain'
               }</p>
-              {gameState.status === 'playing' && (
-                <p><strong>Sisa Waktu:</strong> <span style={{ color: timeLeft <= 10 ? '#ef4444' : 'inherit', fontWeight: 'bold' }}>{timeLeft}s</span></p>
-              )}
               <p><strong>Total Tebakan:</strong> {gameState.guesses.length}</p>
               {gameState.winner && (
                 <div style={{ marginTop: '1rem', padding: '1rem', background: '#e6f4ea', border: '1px solid #c3e6cb', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
