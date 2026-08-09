@@ -3,6 +3,7 @@ import Peer from 'peerjs';
 import WordleBoard from '../components/WordleBoard';
 import AnagramBoard from '../components/AnagramBoard';
 import WinCard from '../components/WinCard';
+import TimeoutCard from '../components/TimeoutCard';
 
 export default function Overlay() {
   // Game state (Wordle & Anagram)
@@ -14,9 +15,13 @@ export default function Overlay() {
     status: 'playing',
     winner: null,
     maxRows: 6,
+    duration: 60,
   });
 
   const [winState, setWinState] = useState({ show: false, winner: null, word: '', mode: '' });
+  const [timeoutState, setTimeoutState] = useState({ show: false, word: '' });
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [totalTime, setTotalTime] = useState(60);
 
   // Word databases
   const targetWordsRef = useRef([]);
@@ -96,7 +101,7 @@ export default function Overlay() {
 
       conn.on('data', (data) => {
         if (data.type === 'startGame') {
-          initGame(data.mode, data.word);
+          initGame(data.mode, data.word, null, data.duration || 60);
         } else if (data.type === 'adminGuess') {
           handleChat({
             comment: data.guess,
@@ -164,6 +169,47 @@ export default function Overlay() {
     };
   }, []);
 
+  // Manage Game Timer Countdown
+  useEffect(() => {
+    if (gameState.status !== 'playing' || !gameState.duration) {
+      return;
+    }
+
+    setTimeLeft(gameState.duration);
+    setTotalTime(gameState.duration);
+
+    const interval = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          handleGameTimeout();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [gameState.targetWord, gameState.status]);
+
+  const handleGameTimeout = () => {
+    setGameState(prev => {
+      if (prev.status !== 'playing') return prev;
+      const updatedState = { ...prev, status: 'lost' };
+      broadcastState(updatedState);
+      return updatedState;
+    });
+
+    setTimeoutState({ show: true, word: gameStateRef.current.targetWord });
+
+    // Auto restart after 10 seconds
+    setTimeout(() => {
+      if (gameStateRef.current.status === 'lost') {
+        initGame(gameStateRef.current.mode, null, null, gameStateRef.current.duration);
+      }
+    }, 10000);
+  };
+
   // Broadcast state changes to all connected Admin Peers
   const broadcastState = (state) => {
     connectionsRef.current.forEach((conn) => {
@@ -197,7 +243,7 @@ export default function Overlay() {
   };
 
   // Initialize Game
-  const initGame = (mode, specificWord = null, overrideTargets = null) => {
+  const initGame = (mode, specificWord = null, overrideTargets = null, duration = 60) => {
     const targets = overrideTargets || targetWordsRef.current;
     const lastTargetWord = gameStateRef.current ? gameStateRef.current.targetWord : null;
     const word = specificWord ? specificWord.toLowerCase() : pickRandomWord(targets);
@@ -210,7 +256,8 @@ export default function Overlay() {
       guesses: [],
       status: 'playing',
       winner: null,
-      maxRows: oldMaxRows
+      maxRows: oldMaxRows,
+      duration: duration
     };
 
     if (mode === 'wordle') {
@@ -223,6 +270,7 @@ export default function Overlay() {
 
     setGameState(newGameState);
     setWinState({ show: false, winner: null, word: '', mode: '' });
+    setTimeoutState({ show: false, word: '' });
     broadcastState(newGameState);
   };
 
@@ -304,6 +352,38 @@ export default function Overlay() {
       </div>
 
       <div style={{ position: 'relative', width: 'fit-content', minHeight: '420px' }}>
+        {/* Countdown Timer Bar */}
+        {gameState.status === 'playing' && gameState.duration && (
+          <div style={{ width: '100%', marginBottom: '1.5rem', maxWidth: '30rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'white', fontWeight: '800', fontSize: '1.2rem', marginBottom: '0.4rem', textShadow: '1px 1px 3px rgba(0,0,0,0.9)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>⏳ SISA WAKTU</span>
+              <span>{timeLeft}s</span>
+            </div>
+            <div style={{
+              width: '100%',
+              height: '14px',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              borderRadius: '7px',
+              overflow: 'hidden',
+              border: '2px solid white',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            }}>
+              <div 
+                className={timeLeft <= 10 ? 'pulse-warning' : ''}
+                style={{
+                  width: `${(timeLeft / totalTime) * 100}%`,
+                  height: '100%',
+                  background: timeLeft <= 10 
+                    ? 'linear-gradient(90deg, #f43f5e, #e11d48)' 
+                    : 'linear-gradient(90deg, #10b981, #059669)',
+                  transition: 'width 1s linear',
+                  borderRadius: '5px'
+                }} 
+              />
+            </div>
+          </div>
+        )}
+
         {gameState.mode === 'wordle' && (
           <WordleBoard gameState={gameState} />
         )}
@@ -319,6 +399,14 @@ export default function Overlay() {
             word={winState.word} 
             mode={winState.mode} 
             onExited={() => setWinState((prev) => ({ ...prev, winner: null }))}
+          />
+        )}
+
+        {timeoutState.show && (
+          <TimeoutCard 
+            show={timeoutState.show}
+            word={timeoutState.word} 
+            onExited={() => setTimeoutState((prev) => ({ ...prev, show: false }))}
           />
         )}
       </div>

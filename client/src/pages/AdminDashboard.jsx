@@ -9,20 +9,39 @@ export default function AdminDashboard() {
   const [connecting, setConnecting] = useState(false);
   const [guessInput, setGuessInput] = useState('');
   const [copyStatus, setCopyStatus] = useState('');
+  const [gameDuration, setGameDuration] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(0);
 
   const peerRef = useRef(null);
   const connRef = useRef(null);
 
-  // Load room code from localStorage if saved, or generate random one
+  // Generate a brand new unique room code every time the page loads
   useEffect(() => {
-    const savedRoom = localStorage.getItem('wordle_room_code') || '';
-    if (savedRoom) {
-      setRoomInput(savedRoom);
-    } else {
-      const randCode = Math.random().toString(36).substring(2, 8);
-      setRoomInput(randCode);
-    }
+    const randCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    setRoomInput(randCode);
   }, []);
+
+  // Synchronized countdown timer for admin display
+  useEffect(() => {
+    if (gameState?.status !== 'playing' || !gameState?.duration) {
+      setTimeLeft(0);
+      return;
+    }
+
+    setTimeLeft(gameState.duration);
+
+    const interval = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [gameState?.targetWord, gameState?.status]);
 
   const handleConnect = (e) => {
     e.preventDefault();
@@ -83,7 +102,7 @@ export default function AdminDashboard() {
 
   const handleStartGame = (mode) => {
     if (connRef.current && connRef.current.open) {
-      connRef.current.send({ type: 'startGame', mode });
+      connRef.current.send({ type: 'startGame', mode, duration: gameDuration });
     }
   };
 
@@ -148,14 +167,25 @@ export default function AdminDashboard() {
           <form onSubmit={handleConnect} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', marginBottom: '1rem' }}>
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '600' }}>Kode Kamar (Room Code):</label>
-              <input 
-                type="text" 
-                placeholder="Masukkan nama live/kode unik Anda..." 
-                value={roomInput}
-                onChange={(e) => setRoomInput(e.target.value)}
-                style={{ padding: '0.6rem', width: '100%', borderRadius: '4px', border: '1px solid #ccc', fontSize: '1rem' }}
-                disabled={connected || connecting}
-              />
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input 
+                  type="text" 
+                  placeholder="Masukkan nama live/kode unik Anda..." 
+                  value={roomInput}
+                  onChange={(e) => setRoomInput(e.target.value)}
+                  style={{ padding: '0.6rem', flex: 1, borderRadius: '4px', border: '1px solid #ccc', fontSize: '1rem' }}
+                  disabled={connected || connecting}
+                />
+                {!connected && !connecting && (
+                  <button 
+                    type="button"
+                    onClick={() => setRoomInput(Math.random().toString(36).substring(2, 10).toUpperCase())}
+                    style={{ padding: '0.6rem 1rem', background: '#6b7280', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                  >
+                    Acak Baru
+                  </button>
+                )}
+              </div>
             </div>
             {!connected ? (
               <button 
@@ -168,7 +198,8 @@ export default function AdminDashboard() {
                   borderRadius: '4px', 
                   cursor: (connecting || !roomInput.trim()) ? 'default' : 'pointer', 
                   fontWeight: 'bold', 
-                  fontSize: '1rem'
+                  fontSize: '1rem',
+                  height: '42px'
                 }}
                 disabled={connecting || !roomInput.trim()}
               >
@@ -186,7 +217,8 @@ export default function AdminDashboard() {
                   borderRadius: '4px', 
                   cursor: 'pointer', 
                   fontWeight: 'bold', 
-                  fontSize: '1rem'
+                  fontSize: '1rem',
+                  height: '42px'
                 }}
               >
                 Putuskan Koneksi
@@ -238,6 +270,19 @@ export default function AdminDashboard() {
           </div>
 
           <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1.5rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '1rem' }}>⏱️ Durasi Game (Detik):</label>
+            <select 
+              value={gameDuration} 
+              onChange={(e) => setGameDuration(parseInt(e.target.value))}
+              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', width: '100%', fontSize: '1rem', marginBottom: '1rem' }}
+            >
+              <option value={30}>30 Detik</option>
+              <option value={60}>60 Detik (Default)</option>
+              <option value={90}>90 Detik</option>
+              <option value={120}>120 Detik</option>
+              <option value={180}>180 Detik</option>
+            </select>
+
             <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '1rem' }}>📏 Baris Wordle di Layar:</label>
             <select 
               value={gameState?.maxRows || 6} 
@@ -278,7 +323,13 @@ export default function AdminDashboard() {
               <p><strong>Mode:</strong> {gameState.mode.toUpperCase()}</p>
               <p><strong>Kata Target:</strong> <span style={{ textTransform: 'uppercase', fontWeight: 'bold', color: '#2b8a3e' }}>{gameState.targetWord}</span></p>
               {gameState.mode === 'anagram' && <p><strong>Huruf Acak:</strong> <span style={{ textTransform: 'uppercase', fontWeight: 'bold' }}>{gameState.scrambledWord}</span></p>}
-              <p><strong>Status Game:</strong> {gameState.status === 'won' ? <span style={{ color: 'green', fontWeight: 'bold' }}>Selesai (Won)</span> : 'Bermain'}</p>
+              <p><strong>Status Game:</strong> {
+                gameState.status === 'won' ? <span style={{ color: 'green', fontWeight: 'bold' }}>Selesai (Won)</span> :
+                gameState.status === 'lost' ? <span style={{ color: '#ef4444', fontWeight: 'bold' }}>Waktu Habis (Lost)</span> : 'Bermain'
+              }</p>
+              {gameState.status === 'playing' && (
+                <p><strong>Sisa Waktu:</strong> <span style={{ color: timeLeft <= 10 ? '#ef4444' : 'inherit', fontWeight: 'bold' }}>{timeLeft}s</span></p>
+              )}
               <p><strong>Total Tebakan:</strong> {gameState.guesses.length}</p>
               {gameState.winner && (
                 <div style={{ marginTop: '1rem', padding: '1rem', background: '#e6f4ea', border: '1px solid #c3e6cb', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
