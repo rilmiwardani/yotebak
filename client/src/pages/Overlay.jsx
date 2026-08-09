@@ -422,10 +422,10 @@ export default function Overlay() {
         if (guessStr === state.targetWord) {
           newStatus = 'won';
           winner = user;
-          // Auto-restart is handled by the useEffect timer
         }
 
         const updatedState = { ...state, guesses: newGuesses, status: newStatus, winner };
+        gameStateRef.current = updatedState; // Immediate sync update to prevent fast-chat race conditions
         setGameState(updatedState);
         broadcastState(updatedState);
 
@@ -437,10 +437,10 @@ export default function Overlay() {
       const matched = extractAnagramGuess(chatText, state.targetWord);
       if (matched) {
         const updatedState = { ...state, status: 'won', winner: user };
+        gameStateRef.current = updatedState; // Immediate sync update
         setGameState(updatedState);
         broadcastState(updatedState);
         setWinState({ show: true, winner: user, word: state.targetWord, mode: state.mode });
-        // Auto-restart is handled by the useEffect timer
       }
     }
   };
