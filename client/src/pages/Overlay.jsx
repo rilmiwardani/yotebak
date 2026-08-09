@@ -120,6 +120,22 @@ export default function Overlay() {
       conn.on('close', () => {
         connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
       });
+
+      conn.on('error', (err) => {
+        console.error('Peer connection error:', err);
+        connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
+      });
+    });
+
+    peer.on('disconnected', () => {
+      console.log('Peer disconnected from signaling server. Attempting to reconnect...');
+      if (!peer.destroyed) {
+        peer.reconnect();
+      }
+    });
+
+    peer.on('error', (err) => {
+      console.error('PeerJS error:', err.type, err);
     });
 
     return () => {
@@ -127,16 +143,32 @@ export default function Overlay() {
     };
   }, []);
 
-  // 3. Connect to local TikFinity WebSocket
+  // 3. Connect to local TikFinity WebSocket (with retry limits)
   useEffect(() => {
     let ws;
     let reconnectTimeout;
+    let retryCount = 0;
+    const MAX_RETRIES = 5;
+    let isMounted = true;
 
     const connectTikFinity = () => {
-      ws = new WebSocket('ws://localhost:21213/');
+      if (!isMounted || retryCount >= MAX_RETRIES) {
+        if (retryCount >= MAX_RETRIES) {
+          console.log('TikFinity: Max reconnect attempts reached. TikFinity tidak tersedia (ini normal jika bukan di komputer lokal).');
+        }
+        return;
+      }
+
+      try {
+        ws = new WebSocket('ws://localhost:21213/');
+      } catch (e) {
+        console.log('TikFinity: WebSocket constructor failed, skipping.');
+        return;
+      }
 
       ws.onopen = () => {
         console.log('Connected to TikFinity local WebSocket');
+        retryCount = 0; // Reset retry count on successful connection
       };
 
       ws.onmessage = (event) => {
@@ -151,20 +183,27 @@ export default function Overlay() {
       };
 
       ws.onclose = () => {
-        console.log('TikFinity connection closed. Reconnecting in 5s...');
-        reconnectTimeout = setTimeout(connectTikFinity, 5000);
+        if (!isMounted) return;
+        retryCount++;
+        const delay = Math.min(5000 * Math.pow(1.5, retryCount - 1), 30000);
+        console.log(`TikFinity connection closed. Retry ${retryCount}/${MAX_RETRIES} in ${Math.round(delay / 1000)}s...`);
+        reconnectTimeout = setTimeout(connectTikFinity, delay);
       };
 
-      ws.onerror = (err) => {
-        console.error('TikFinity WebSocket error:', err);
-        ws.close();
+      ws.onerror = () => {
+        // Don't log the full error object (it's noisy in console)
+        // Just let onclose handle the reconnect
       };
     };
 
     connectTikFinity();
 
     return () => {
-      if (ws) ws.close();
+      isMounted = false;
+      if (ws) {
+        ws.onclose = null; // Prevent reconnect on unmount
+        ws.close();
+      }
       clearTimeout(reconnectTimeout);
     };
   }, []);

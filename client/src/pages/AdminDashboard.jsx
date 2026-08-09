@@ -59,7 +59,7 @@ export default function AdminDashboard() {
     peer.on('open', () => {
       console.log('Dashboard Peer open. Connecting to overlay host...');
       const hostId = `overlay-game-${roomInput.trim()}`;
-      const conn = peer.connect(hostId);
+      const conn = peer.connect(hostId, { reliable: true });
       connRef.current = conn;
 
       conn.on('open', () => {
@@ -82,6 +82,13 @@ export default function AdminDashboard() {
         console.error('Connection error:', err);
         handleDisconnect();
       });
+    });
+
+    peer.on('disconnected', () => {
+      console.log('Dashboard peer disconnected from signaling server. Reconnecting...');
+      if (!peer.destroyed) {
+        peer.reconnect();
+      }
     });
 
     peer.on('error', (err) => {
