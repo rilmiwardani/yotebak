@@ -22,19 +22,22 @@ export default function TimeoutCard({ show, word, onExited }) {
     }
   }, [show, onExited]);
 
-  // Countdown timer
+  // Countdown timer (uses Date.now() to be immune to browser throttling)
+  const startTimeRef = React.useRef(null);
   useEffect(() => {
     if (!render || isLeaving) return;
 
+    startTimeRef.current = Date.now();
+    setCountdown(RESTART_DELAY);
+
     const interval = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+      const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      const remaining = Math.max(RESTART_DELAY - elapsed, 0);
+      setCountdown(remaining);
+      if (remaining <= 0) {
+        clearInterval(interval);
+      }
+    }, 500); // Check every 500ms for smoother recovery from throttling
 
     return () => clearInterval(interval);
   }, [render, isLeaving]);

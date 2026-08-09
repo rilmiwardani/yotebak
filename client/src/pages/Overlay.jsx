@@ -23,6 +23,10 @@ export default function Overlay() {
   // TikFinity connection status
   const tikFinityConnectedRef = useRef(false);
 
+  // Auto-restart: track when game ended (using real timestamp, not setTimeout)
+  const RESTART_DELAY_MS = 10000;
+  const endedAtRef = useRef(null);
+
   // Word databases
   const targetWordsRef = useRef([]);
   const validWordsSetRef = useRef(new Set());
@@ -36,6 +40,35 @@ export default function Overlay() {
   // Keep refs of gameState, playedWords, etc. to avoid closure stale state in async callbacks
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
+
+  // Robust auto-restart: uses Date.now() to check real elapsed time
+  // This is immune to browser timer throttling in background tabs / embedded browsers
+  useEffect(() => {
+    if (gameState.status !== 'won' && gameState.status !== 'lost') {
+      endedAtRef.current = null;
+      return;
+    }
+
+    // Record the timestamp when game ended (only once)
+    if (!endedAtRef.current) {
+      endedAtRef.current = Date.now();
+    }
+
+    const checkRestart = setInterval(() => {
+      if (!endedAtRef.current) {
+        clearInterval(checkRestart);
+        return;
+      }
+      const elapsed = Date.now() - endedAtRef.current;
+      if (elapsed >= RESTART_DELAY_MS) {
+        clearInterval(checkRestart);
+        endedAtRef.current = null;
+        initGame(gameStateRef.current.mode);
+      }
+    }, 1000);
+
+    return () => clearInterval(checkRestart);
+  }, [gameState.status, gameState.targetWord]);
 
   // 1. Fetch word list files
   useEffect(() => {
@@ -389,13 +422,7 @@ export default function Overlay() {
         if (guessStr === state.targetWord) {
           newStatus = 'won';
           winner = user;
-
-          // Auto restart after 10 seconds
-          setTimeout(() => {
-            if (gameStateRef.current.status === 'won') {
-              initGame(gameStateRef.current.mode);
-            }
-          }, 10000);
+          // Auto-restart is handled by the useEffect timer
         }
 
         const updatedState = { ...state, guesses: newGuesses, status: newStatus, winner };
@@ -413,13 +440,7 @@ export default function Overlay() {
         setGameState(updatedState);
         broadcastState(updatedState);
         setWinState({ show: true, winner: user, word: state.targetWord, mode: state.mode });
-
-        // Auto restart after 10 seconds
-        setTimeout(() => {
-          if (gameStateRef.current.status === 'won') {
-            initGame(gameStateRef.current.mode);
-          }
-        }, 10000);
+        // Auto-restart is handled by the useEffect timer
       }
     }
   };
