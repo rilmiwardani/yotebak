@@ -295,6 +295,78 @@ export default function Overlay() {
     return true;
   };
 
+  // Sanitize text: strip all non-alphabetic characters
+  const sanitize = (text) => text.replace(/[^a-zA-Z]/g, '').toLowerCase();
+
+  // Extract a valid 5-letter word from chat text (with TikTok bypass handling)
+  const extractGuess = (chatText) => {
+    // Strategy 1: Exact 5-letter word from space-separated parts
+    // Handles: "makan", "makan bang", "coba makan yuk"
+    const parts = chatText.split(/\s+/);
+    for (const part of parts) {
+      if (part.length === 5 && checkWordleGuess(part)) {
+        return part;
+      }
+    }
+
+    // Strategy 2: Clean each individual part (remove dots/symbols within a word)
+    // Handles: ".MAKAN", "MA.KAN", "M.A.K.A.N", "makan!", "makan."
+    for (const part of parts) {
+      const cleaned = sanitize(part);
+      if (cleaned.length === 5 && checkWordleGuess(cleaned)) {
+        return cleaned;
+      }
+    }
+
+    // Strategy 3: Clean the ENTIRE text (strip all non-alpha)
+    // Handles: "MA KAN", "M A K A N", "MA. KAN"
+    const fullCleaned = sanitize(chatText);
+    if (fullCleaned.length === 5 && checkWordleGuess(fullCleaned)) {
+      return fullCleaned;
+    }
+
+    // Strategy 4: Sliding window on cleaned text (find valid 5-letter substring)
+    // Handles: "halo makan", "cobamakanyuk" (after cleaning)
+    if (fullCleaned.length > 5) {
+      for (let i = 0; i <= fullCleaned.length - 5; i++) {
+        const sub = fullCleaned.substring(i, i + 5);
+        if (checkWordleGuess(sub)) {
+          return sub;
+        }
+      }
+    }
+
+    return '';
+  };
+
+  // Extract anagram answer from chat text (with TikTok bypass handling)
+  const extractAnagramGuess = (chatText, targetWord) => {
+    // Strategy 1: Direct match
+    if (chatText === targetWord) return targetWord;
+
+    // Strategy 2: Match from space-separated parts
+    const parts = chatText.split(/\s+/);
+    for (const part of parts) {
+      if (part === targetWord) return targetWord;
+      const cleaned = sanitize(part);
+      if (cleaned === targetWord) return targetWord;
+    }
+
+    // Strategy 3: Clean entire text
+    const fullCleaned = sanitize(chatText);
+    if (fullCleaned === targetWord) return targetWord;
+
+    // Strategy 4: Sliding window
+    if (fullCleaned.length > targetWord.length) {
+      for (let i = 0; i <= fullCleaned.length - targetWord.length; i++) {
+        const sub = fullCleaned.substring(i, i + targetWord.length);
+        if (sub === targetWord) return targetWord;
+      }
+    }
+
+    return '';
+  };
+
   // Handle comment event
   const handleChat = (data) => {
     const state = gameStateRef.current;
@@ -307,16 +379,9 @@ export default function Overlay() {
     };
 
     if (state.mode === 'wordle') {
-      const parts = chatText.split(' ');
-      let guessStr = '';
-      for (let part of parts) {
-        if (part.length === 5) {
-          guessStr = part;
-          break;
-        }
-      }
+      const guessStr = extractGuess(chatText);
 
-      if (guessStr && checkWordleGuess(guessStr)) {
+      if (guessStr) {
         const newGuesses = [...state.guesses, { word: guessStr, user }];
         let newStatus = state.status;
         let winner = state.winner;
@@ -342,7 +407,8 @@ export default function Overlay() {
         }
       }
     } else if (state.mode === 'anagram') {
-      if (chatText === state.targetWord) {
+      const matched = extractAnagramGuess(chatText, state.targetWord);
+      if (matched) {
         const updatedState = { ...state, status: 'won', winner: user };
         setGameState(updatedState);
         broadcastState(updatedState);
