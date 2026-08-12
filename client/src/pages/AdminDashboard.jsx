@@ -28,6 +28,13 @@ export default function AdminDashboard() {
     const targetRoom = roomInput.trim();
     if (!targetRoom || connecting) return;
 
+    // Reset previous state and destroy old peer to ensure clean one-click connection
+    if (peerRef.current) {
+      try { peerRef.current.destroy(); } catch (_) {}
+      peerRef.current = null;
+    }
+    connsRef.current = [];
+
     setConnecting(true);
     setRoomCode(targetRoom);
     localStorage.setItem('wordle_room_code', targetRoom);
@@ -36,21 +43,19 @@ export default function AdminDashboard() {
     const peer = new Peer();
     peerRef.current = peer;
 
-    peer.on('open', () => {
-      console.log('Dashboard Peer open. Connecting to all overlay instances for room:', targetRoom);
-      
-      const targetHosts = [
-        `overlay-game-${targetRoom}`,
-        `overlay-game-${targetRoom}-wordle`,
-        `overlay-game-${targetRoom}-anagram`,
-        `overlay-game-${targetRoom}-leaderboard`,
-        `overlay-game-${targetRoom}-leaderboard-wordle`,
-        `overlay-game-${targetRoom}-leaderboard-anagram`
-      ];
+    const targetHosts = [
+      `overlay-game-${targetRoom}`,
+      `overlay-game-${targetRoom}-wordle`,
+      `overlay-game-${targetRoom}-anagram`,
+      `overlay-game-${targetRoom}-leaderboard`,
+      `overlay-game-${targetRoom}-leaderboard-wordle`,
+      `overlay-game-${targetRoom}-leaderboard-anagram`
+    ];
 
-      connsRef.current = [];
+    const connectToHost = (hostId) => {
+      if (!peer || peer.destroyed || connsRef.current.some(c => c.peer === hostId && c.open)) return;
 
-      targetHosts.forEach((hostId) => {
+      try {
         const conn = peer.connect(hostId, { reliable: true });
 
         conn.on('open', () => {
@@ -80,19 +85,20 @@ export default function AdminDashboard() {
           }
         });
 
-        conn.on('error', (err) => {
-          console.warn(`Connection error on ${hostId}:`, err);
+        conn.on('error', () => {
           connsRef.current = connsRef.current.filter(c => c.peer !== hostId);
-          if (connsRef.current.length === 0) {
-            setConnected(false);
-          }
         });
-      });
+      } catch (_) {}
+    };
 
-      // Timeout safety for connection
+    peer.on('open', () => {
+      console.log('Dashboard Peer open. Connecting to overlay instances for room:', targetRoom);
+      targetHosts.forEach(hostId => connectToHost(hostId));
+
+      // Stop spinner after 2.5s
       setTimeout(() => {
         setConnecting(false);
-      }, 4000);
+      }, 2500);
     });
 
     peer.on('disconnected', () => {
@@ -104,7 +110,7 @@ export default function AdminDashboard() {
 
     peer.on('error', (err) => {
       console.error('PeerJS Client error:', err);
-      handleDisconnect();
+      // Don't kill whole dashboard immediately on single handshake error
     });
   };
 

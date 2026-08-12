@@ -632,36 +632,28 @@ export default function Overlay() {
     return '';
   };
 
-  // 3. Connect to local TikFinity WebSocket (with retry limits)
+  // 3. Connect to local TikFinity WebSocket (Continuous Reconnect without limit)
   useEffect(() => {
-    let ws;
-    let reconnectTimeout;
-    let retryCount = 0;
-    const MAX_RETRIES = 5;
+    let ws = null;
+    let reconnectTimeout = null;
     let isMounted = true;
 
     const connectTikFinity = () => {
-      if (!isMounted || retryCount >= MAX_RETRIES) {
-        if (retryCount >= MAX_RETRIES) {
-          console.log('TikFinity: Max reconnect attempts reached. TikFinity tidak tersedia (ini normal jika bukan di komputer lokal).');
-          tikFinityConnectedRef.current = false;
-          broadcastTikFinityStatus(false);
-        }
-        return;
-      }
+      if (!isMounted) return;
 
       try {
-        ws = new WebSocket('ws://localhost:21213/');
+        // Use 127.0.0.1 explicitly to avoid Windows IPv6 resolution issues with localhost
+        ws = new WebSocket('ws://127.0.0.1:21213/');
       } catch (e) {
-        console.log('TikFinity: WebSocket constructor failed, skipping.');
         tikFinityConnectedRef.current = false;
         broadcastTikFinityStatus(false);
+        if (isMounted) reconnectTimeout = setTimeout(connectTikFinity, 3000);
         return;
       }
 
       ws.onopen = () => {
-        console.log('Connected to TikFinity local WebSocket');
-        retryCount = 0;
+        if (!isMounted) return;
+        console.log('✅ Connected to TikFinity local WebSocket (ws://127.0.0.1:21213/)');
         tikFinityConnectedRef.current = true;
         broadcastTikFinityStatus(true);
       };
@@ -681,14 +673,13 @@ export default function Overlay() {
         if (!isMounted) return;
         tikFinityConnectedRef.current = false;
         broadcastTikFinityStatus(false);
-        retryCount++;
-        const delay = Math.min(5000 * Math.pow(1.5, retryCount - 1), 30000);
-        console.log(`TikFinity connection closed. Retry ${retryCount}/${MAX_RETRIES} in ${Math.round(delay / 1000)}s...`);
-        reconnectTimeout = setTimeout(connectTikFinity, delay);
+        reconnectTimeout = setTimeout(connectTikFinity, 3000);
       };
 
       ws.onerror = () => {
-        // Just let onclose handle reconnect
+        try {
+          if (ws) ws.close();
+        } catch (_) {}
       };
     };
 
@@ -697,8 +688,7 @@ export default function Overlay() {
     return () => {
       isMounted = false;
       if (ws) {
-        ws.onclose = null;
-        ws.close();
+        try { ws.close(); } catch (_) {}
       }
       clearTimeout(reconnectTimeout);
     };
