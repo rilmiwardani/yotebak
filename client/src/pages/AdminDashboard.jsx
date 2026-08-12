@@ -76,6 +76,13 @@ export default function AdminDashboard() {
             if (data.state.anagramRows) {
               setAnagramRows(data.state.anagramRows);
             }
+            
+            // RELAY state to all OTHER connected overlays so they sync live (fix for isolated OBS browser sources)
+            connsRef.current.forEach(c => {
+              if (c.peer !== hostId && c.open) {
+                c.send({ type: 'gameState', state: data.state });
+              }
+            });
           } else if (data.type === 'tikFinityStatus') {
             setTikFinityConnected(data.connected);
           }

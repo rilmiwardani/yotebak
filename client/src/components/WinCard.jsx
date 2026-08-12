@@ -205,7 +205,7 @@ export default function WinCard({ show, winner, word, mode, onExited }) {
             />
             <div style={{ textAlign: 'center' }}>
               <span style={{ fontSize: '0.7rem', color: '#9ca3af', display: 'block', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.05em' }}>
-                {isMultiWord ? 'Penebak Terakhir' : 'Pemenang'}
+                {isMultiWord ? 'MVP Ronde' : 'Pemenang'}
               </span>
               <h3 style={{ 
                 fontSize: '1.25rem', 

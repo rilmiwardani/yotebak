@@ -198,20 +198,37 @@ export default function Overlay() {
     });
   };
 
-  // Independent auto-restart: Wordle and Anagram restart strictly isolated without touching each other!
+  // Independent auto-restart and Win Overlay trigger: Reactive to ALL state changes (local & remote)
   useEffect(() => {
-    // Wordle end tracking
+    // Wordle end tracking & Win Screen Trigger
     if (gameState.wordleStatus === 'won') {
-      if (!wordleEndedAtRef.current) wordleEndedAtRef.current = Date.now();
+      if (!wordleEndedAtRef.current) {
+        wordleEndedAtRef.current = Date.now();
+        setWordleWinState({
+          show: true,
+          winner: gameState.wordleWinner,
+          word: gameState.targetWord
+        });
+      }
     } else {
       wordleEndedAtRef.current = null;
+      setWordleWinState(prev => prev.show ? { ...prev, show: false } : prev);
     }
 
-    // Anagram end tracking
+    // Anagram end tracking & Win Screen Trigger
     if (gameState.anagramStatus === 'won') {
-      if (!anagramEndedAtRef.current) anagramEndedAtRef.current = Date.now();
+      if (!anagramEndedAtRef.current) {
+        anagramEndedAtRef.current = Date.now();
+        const allTargetWords = (gameState.anagramWords || []).map(w => w.targetWord).join(', ');
+        setAnagramWinState({
+          show: true,
+          winner: gameState.anagramWinner,
+          word: allTargetWords
+        });
+      }
     } else {
       anagramEndedAtRef.current = null;
+      setAnagramWinState(prev => prev.show ? { ...prev, show: false } : prev);
     }
 
     const checkRestart = setInterval(() => {
@@ -231,7 +248,7 @@ export default function Overlay() {
     }, 1000);
 
     return () => clearInterval(checkRestart);
-  }, [gameState.wordleStatus, gameState.anagramStatus]);
+  }, [gameState.wordleStatus, gameState.anagramStatus, gameState.wordleWinner, gameState.anagramWinner, gameState.targetWord, gameState.anagramWords]);
 
   // Persistence helpers for played words pool
   const loadPlayedWords = () => {
@@ -519,49 +536,57 @@ export default function Overlay() {
   // Initialize Game (Wordle, Anagram, or Dual)
   const initGame = (mode, specificWord = null, overrideTargets = null, anagramCount = null) => {
     const targets = overrideTargets || targetWordsRef.current;
-    const lastTargetWord = gameStateRef.current ? gameStateRef.current.targetWord : null;
-    const oldMaxRows = gameStateRef.current ? (gameStateRef.current.maxRows || 6) : 6;
-    const count = anagramCount || (gameStateRef.current ? (gameStateRef.current.anagramRows || 3) : 3);
+    const currentState = gameStateRef.current || {};
+    
+    const oldMaxRows = currentState.maxRows || 6;
+    const count = anagramCount || (currentState.anagramRows || 3);
     const validAnagramRows = Math.min(Math.max(Number(count) || 3, 1), 6);
 
-    const wordleWord = specificWord ? specificWord.toLowerCase() : drawTargetWord(targets);
-    const firstGuess = (lastTargetWord && lastTargetWord.length === 5) ? lastTargetWord : getRandomHintWord(targets);
-    const anagramList = generateAnagramWords(targets, validAnagramRows);
+    const isResetWordle = mode === 'wordle' || mode === 'dual' || !currentState.targetWord;
+    const isResetAnagram = mode === 'anagram' || mode === 'dual' || !currentState.anagramWords || currentState.anagramWords.length === 0;
+
+    const wordleWord = isResetWordle 
+      ? (specificWord ? specificWord.toLowerCase() : drawTargetWord(targets))
+      : currentState.targetWord;
+
+    const lastWordleWord = currentState.targetWord;
+    const firstGuess = (lastWordleWord && lastWordleWord.length === 5) ? lastWordleWord : getRandomHintWord(targets);
+
+    const wordleGuesses = isResetWordle
+      ? [{ word: firstGuess, user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=4ca371&color=fff' } }]
+      : currentState.guesses;
+
+    const anagramList = isResetAnagram
+      ? generateAnagramWords(targets, validAnagramRows)
+      : currentState.anagramWords;
 
     const newGameState = {
+      ...currentState,
       mode: mode,
       // Wordle fields
       targetWord: wordleWord,
-      guesses: [{
-        word: firstGuess,
-        user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=4ca371&color=fff' }
-      }],
-      wordleStatus: 'playing',
-      wordleWinner: null,
+      guesses: wordleGuesses,
+      wordleStatus: isResetWordle ? 'playing' : currentState.wordleStatus,
+      wordleWinner: isResetWordle ? null : currentState.wordleWinner,
       maxRows: oldMaxRows,
       // Anagram fields
       scrambledWord: anagramList[0]?.scrambledWord || '',
       anagramWords: anagramList,
-      anagramStatus: 'playing',
-      anagramWinner: null,
+      anagramStatus: isResetAnagram ? 'playing' : currentState.anagramStatus,
+      anagramWinner: isResetAnagram ? null : currentState.anagramWinner,
       anagramRows: validAnagramRows,
-      // Two Separate Leaderboards
-      wordleLeaderboard: gameStateRef.current?.wordleLeaderboard || loadWordleLeaderboard(),
-      anagramLeaderboard: gameStateRef.current?.anagramLeaderboard || loadAnagramLeaderboard(),
-      maxLeaderboardRows: gameStateRef.current?.maxLeaderboardRows || loadMaxLeaderboardRows(),
       // Pool tracking fields
       poolPlayed: playedWordsRef.current.size,
       poolTotal: targets.length || 1958,
-      // Fallback overall status
-      status: 'playing',
-      winner: null,
     };
 
     gameStateRef.current = newGameState;
     setGameState(newGameState);
-    setWordleWinState({ show: false, winner: null, word: '' });
-    setAnagramWinState({ show: false, winner: null, word: '' });
+    
+    if (isResetWordle) setWordleWinState({ show: false, winner: null, word: '' });
+    if (isResetAnagram) setAnagramWinState({ show: false, winner: null, word: '' });
     setTimeoutState({ show: false, word: '' });
+    
     broadcastState(newGameState);
   };
 
@@ -768,6 +793,30 @@ export default function Overlay() {
         });
 
         const allSolved = updatedAnagramWords.every(w => w.solved);
+        
+        let roundMvp = user;
+        if (allSolved) {
+          const scores = {};
+          updatedAnagramWords.forEach(w => {
+            if (w.winner && w.winner.nickname) {
+              const nick = w.winner.nickname;
+              scores[nick] = (scores[nick] || 0) + 1;
+            }
+          });
+          
+          let maxScore = scores[user.nickname] || 0;
+          
+          for (const w of updatedAnagramWords) {
+            if (w.winner && w.winner.nickname) {
+              const nick = w.winner.nickname;
+              if (scores[nick] > maxScore) {
+                maxScore = scores[nick];
+                roundMvp = w.winner;
+              }
+            }
+          }
+        }
+        
         const newAnagramStatus = allSolved ? 'won' : 'playing';
 
         // Add win points to Anagram Leaderboard
@@ -777,14 +826,13 @@ export default function Overlay() {
           ...updatedState,
           anagramWords: updatedAnagramWords,
           anagramStatus: newAnagramStatus,
-          anagramWinner: allSolved ? user : updatedState.anagramWinner,
+          anagramWinner: allSolved ? roundMvp : updatedState.anagramWinner,
           anagramLeaderboard: updatedAnagramLeaderboard,
         };
         stateChanged = true;
 
         if (allSolved) {
-          const allTargetWords = updatedAnagramWords.map(w => w.targetWord).join(', ');
-          setAnagramWinState({ show: true, winner: user, word: allTargetWords });
+          // Win screen triggered reactively via useEffect
         }
       }
     }
@@ -816,7 +864,7 @@ export default function Overlay() {
         stateChanged = true;
 
         if (newWordleStatus === 'won') {
-          setWordleWinState({ show: true, winner: user, word: updatedState.targetWord });
+          // Win screen triggered reactively via useEffect
         }
       }
     }
