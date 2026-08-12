@@ -31,6 +31,51 @@ export default function WordleBoard({ gameState }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: 'fit-content' }}>
+      {/* Header Info Wordle (Horizontal Compact & Identik dengan Anagram) */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        backgroundColor: 'rgba(255, 255, 255, 0.92)', 
+        padding: '0.5rem 1rem', 
+        borderRadius: '8px',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+        backdropFilter: 'blur(8px)',
+        border: '1px solid rgba(255,255,255,0.6)',
+        marginBottom: '0.2rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span style={{ fontSize: '1.2rem' }}>🟩</span>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#1f2937', margin: 0 }}>
+            Tebak 5 Huruf
+          </h2>
+        </div>
+
+        {/* Indikator Warna Mini Horizontal Compact */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '0.5rem',
+          backgroundColor: '#f3f4f6',
+          padding: '0.2rem 0.6rem',
+          borderRadius: '999px',
+          border: '1px solid #e5e7eb'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <span style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: 'var(--wordle-correct)', display: 'inline-block' }}></span>
+            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#374151' }}>Tepat</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <span style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: 'var(--wordle-present)', display: 'inline-block' }}></span>
+            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#374151' }}>Ada</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <span style={{ width: '10px', height: '10px', borderRadius: '2px', backgroundColor: 'var(--wordle-absent)', display: 'inline-block' }}></span>
+            <span style={{ fontSize: '0.75rem', fontWeight: '800', color: '#374151' }}>Salah</span>
+          </div>
+        </div>
+      </div>
+
       {rows}
     </div>
   );
