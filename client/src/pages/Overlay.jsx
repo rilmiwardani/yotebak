@@ -335,7 +335,7 @@ export default function Overlay() {
       targetWord: wordleWord,
       guesses: (mode === 'wordle' || mode === 'dual') ? [{
         word: firstGuess,
-        user: { nickname: 'Kata Lalu', profilePic: 'https://ui-avatars.com/api/?name=Lalu&background=4ca371&color=fff' }
+        user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=4ca371&color=fff' }
       }] : [],
       wordleStatus: 'playing',
       wordleWinner: null,
@@ -375,7 +375,7 @@ export default function Overlay() {
         targetWord: newWord,
         guesses: [{
           word: firstGuess,
-          user: { nickname: 'Kata Lalu', profilePic: 'https://ui-avatars.com/api/?name=Lalu&background=4ca371&color=fff' }
+          user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=4ca371&color=fff' }
         }],
         wordleStatus: 'playing',
         wordleWinner: null,
