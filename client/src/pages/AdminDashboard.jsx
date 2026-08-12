@@ -312,19 +312,19 @@ export default function AdminDashboard() {
 
                 {/* 3. Khusus Anagram */}
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '170px', color: '#6b21a8' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '170px', color: '#1e40af' }}>
                     3. Khusus Anagram Saja:
                   </span>
                   <input 
                     type="text" 
                     readOnly 
                     value={urlAnagram} 
-                    style={{ padding: '0.4rem 0.6rem', flex: 1, borderRadius: '4px', border: '1px solid #ccc', background: '#faf5ff', fontSize: '0.85rem' }} 
+                    style={{ padding: '0.4rem 0.6rem', flex: 1, borderRadius: '4px', border: '1px solid #ccc', background: '#eff6ff', fontSize: '0.85rem' }} 
                     onClick={(e) => e.target.select()}
                   />
                   <button 
                     onClick={() => copySpecificUrl(urlAnagram, 'anagram')} 
-                    style={{ padding: '0.4rem 0.8rem', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                    style={{ padding: '0.4rem 0.8rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>
                     {copiedKey === 'anagram' ? 'Disalin! ✅' : 'Copy URL'}
                   </button>
                 </div>
@@ -359,7 +359,7 @@ export default function AdminDashboard() {
               onClick={() => handleStartGame('dual')}
               style={{ 
                 padding: '1.1rem', 
-                background: 'linear-gradient(135deg, #10b981 0%, #8b5cf6 100%)', 
+                background: 'linear-gradient(135deg, #10b981 0%, #2563eb 100%)', 
                 color: 'white', 
                 border: 'none', 
                 borderRadius: '8px', 
@@ -379,8 +379,8 @@ export default function AdminDashboard() {
               </button>
               <button 
                 onClick={() => handleStartGame('anagram')}
-                style={{ flex: 1, padding: '0.8rem', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 'bold' }}>
-                🟪 Mulai Anagram Saja
+                style={{ flex: 1, padding: '0.8rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 'bold' }}>
+                🟦 Mulai Anagram Saja
               </button>
             </div>
           </div>
@@ -448,8 +448,8 @@ export default function AdminDashboard() {
                   fontWeight: 'bold',
                   fontSize: '0.85rem',
                   background: gameState.mode === 'dual' 
-                    ? 'linear-gradient(135deg, #10b981 0%, #8b5cf6 100%)' 
-                    : (gameState.mode === 'wordle' ? '#10b981' : '#8b5cf6')
+                    ? 'linear-gradient(135deg, #10b981 0%, #2563eb 100%)' 
+                    : (gameState.mode === 'wordle' ? '#10b981' : '#2563eb')
                 }}>
                   {gameState.mode === 'dual' ? '🔥 DUAL (WORDLE + ANAGRAM)' : gameState.mode?.toUpperCase()}
                 </span>

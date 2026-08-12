@@ -40,7 +40,7 @@ export default function AnagramBoard({ gameState }) {
           </h2>
         </div>
         <div style={{ 
-          backgroundColor: solvedCount === totalCount ? '#2b8a3e' : '#8b5cf6', 
+          backgroundColor: solvedCount === totalCount ? '#2b8a3e' : '#2563eb', 
           color: 'white', 
           fontSize: '0.85rem', 
           fontWeight: '800', 
@@ -83,7 +83,7 @@ export default function AnagramBoard({ gameState }) {
                       textShadow: '0px 1px 3px rgba(0, 0, 0, 0.3)',
                       textTransform: 'uppercase',
                       color: 'white',
-                      backgroundColor: item.solved ? 'var(--wordle-correct)' : '#8b5cf6',
+                      backgroundColor: item.solved ? 'var(--wordle-correct)' : '#2563eb',
                       borderRadius: '8px',
                       animationDelay: item.solved ? `${i * 0.08}s` : '0s',
                       boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
