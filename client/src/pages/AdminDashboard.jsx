@@ -4,25 +4,27 @@ import Peer from 'peerjs';
 export default function AdminDashboard() {
   const [roomInput, setRoomInput] = useState('');
   const [roomCode, setRoomCode] = useState('');
-  const [gameState, setGameState] = useState(null);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [gameState, setGameState] = useState(null);
   const [guessInput, setGuessInput] = useState('');
   const [copiedKey, setCopiedKey] = useState('');
   const [tikFinityConnected, setTikFinityConnected] = useState(false);
   const [anagramRows, setAnagramRows] = useState(3);
 
   const peerRef = useRef(null);
-  const connsRef = useRef([]);
+  const connsRef = useRef([]); // Store array of connections to all active overlays in the room
 
-  // Generate a brand new unique room code every time the page loads
+  // Auto load saved room code from localStorage on mount
   useEffect(() => {
-    const randCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-    setRoomInput(randCode);
+    const savedRoom = localStorage.getItem('wordle_room_code');
+    if (savedRoom) {
+      setRoomInput(savedRoom);
+    }
   }, []);
 
   const handleConnect = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     const targetRoom = roomInput.trim();
     if (!targetRoom || connecting) return;
 
@@ -40,7 +42,8 @@ export default function AdminDashboard() {
       const targetHosts = [
         `overlay-game-${targetRoom}`,
         `overlay-game-${targetRoom}-wordle`,
-        `overlay-game-${targetRoom}-anagram`
+        `overlay-game-${targetRoom}-anagram`,
+        `overlay-game-${targetRoom}-leaderboard`
       ];
 
       connsRef.current = [];
@@ -156,6 +159,17 @@ export default function AdminDashboard() {
     broadcastToOverlays({ type: 'updateAnagramRows', anagramRows: val });
   };
 
+  const handleLeaderboardLimitChange = (e) => {
+    const val = parseInt(e.target.value);
+    broadcastToOverlays({ type: 'updateLeaderboardLimit', limit: val });
+  };
+
+  const handleResetLeaderboardConfirm = () => {
+    if (window.confirm('⚠️ Yakin ingin mereset semua data Leaderboard dan poin kemenangan pemain?')) {
+      broadcastToOverlays({ type: 'resetLeaderboard' });
+    }
+  };
+
   const copySpecificUrl = (url, key) => {
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url)
@@ -194,9 +208,10 @@ export default function AdminDashboard() {
   const urlCombined = currentRoom ? `${origin}/overlay?room=${currentRoom}` : '';
   const urlWordle = currentRoom ? `${origin}/overlay?room=${currentRoom}&view=wordle` : '';
   const urlAnagram = currentRoom ? `${origin}/overlay?room=${currentRoom}&view=anagram` : '';
+  const urlLeaderboard = currentRoom ? `${origin}/overlay?room=${currentRoom}&view=leaderboard` : '';
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '850px', margin: '0 auto' }}>
+    <div style={{ padding: '2rem', maxWidth: '880px', margin: '0 auto' }}>
       <h1 style={{ marginBottom: '1.5rem', fontSize: '1.9rem', fontWeight: 'bold' }}>🎮 Dashboard TikFinity Wordle & Anagram (Serverless P2P)</h1>
       
       {/* Connection Panel */}
@@ -259,29 +274,29 @@ export default function AdminDashboard() {
                   height: '42px'
                 }}
               >
-                Putuskan Koneksi
+                Putus Koneksi
               </button>
             )}
           </form>
 
-          {/* PILIHAN URL OVERLAY OBS (Bisa Gabungan atau Terpisah) */}
+          {/* Opsi URL Browser Source Terpisah / Gabungan */}
           {currentRoom && (
-            <div style={{ marginTop: '1rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
-              <p style={{ fontWeight: '700', marginBottom: '0.6rem', color: '#1f2937' }}>
-                🔗 Pilihan URL Browser Source untuk OBS:
-              </p>
+            <div style={{ marginTop: '1.2rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <strong style={{ fontSize: '0.95rem', display: 'block', marginBottom: '0.75rem', color: '#1e293b' }}>
+                🔗 Pilih URL Browser Source untuk OBS:
+              </strong>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                 {/* 1. Gabungan */}
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '170px' }}>
-                    1. Gabungan (Sesuai Mode):
+                  <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '180px', color: '#475569' }}>
+                    1. Semua Overlay (Gabungan):
                   </span>
                   <input 
                     type="text" 
                     readOnly 
                     value={urlCombined} 
-                    style={{ padding: '0.4rem 0.6rem', flex: 1, borderRadius: '4px', border: '1px solid #ccc', background: '#f9fafb', fontSize: '0.85rem' }} 
+                    style={{ padding: '0.4rem 0.6rem', flex: 1, borderRadius: '4px', border: '1px solid #ccc', background: '#fff', fontSize: '0.85rem' }} 
                     onClick={(e) => e.target.select()}
                   />
                   <button 
@@ -293,7 +308,7 @@ export default function AdminDashboard() {
 
                 {/* 2. Khusus Wordle */}
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '170px', color: '#166534' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '180px', color: '#15803d' }}>
                     2. Khusus Wordle Saja:
                   </span>
                   <input 
@@ -312,7 +327,7 @@ export default function AdminDashboard() {
 
                 {/* 3. Khusus Anagram */}
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '170px', color: '#1e40af' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '180px', color: '#1e40af' }}>
                     3. Khusus Anagram Saja:
                   </span>
                   <input 
@@ -328,10 +343,29 @@ export default function AdminDashboard() {
                     {copiedKey === 'anagram' ? 'Disalin! ✅' : 'Copy URL'}
                   </button>
                 </div>
+
+                {/* 4. Khusus Leaderboard */}
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '180px', color: '#b45309' }}>
+                    4. 🏆 Khusus Leaderboard:
+                  </span>
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={urlLeaderboard} 
+                    style={{ padding: '0.4rem 0.6rem', flex: 1, borderRadius: '4px', border: '1px solid #ccc', background: '#fffbeb', fontSize: '0.85rem' }} 
+                    onClick={(e) => e.target.select()}
+                  />
+                  <button 
+                    onClick={() => copySpecificUrl(urlLeaderboard, 'leaderboard')} 
+                    style={{ padding: '0.4rem 0.8rem', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                    {copiedKey === 'leaderboard' ? 'Disalin! ✅' : 'Copy URL'}
+                  </button>
+                </div>
               </div>
 
-              <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                💡 <em>Tip: Gunakan <strong>URL Wordle Saja</strong> dan <strong>URL Anagram Saja</strong> sebagai 2 Browser Source terpisah di OBS agar Anda bisa bebas menggeser, memperbesar, dan mengatur posisi kedua papan secara mandiri!</em>
+              <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.65rem', marginBottom: 0 }}>
+                💡 <em>Tip: Masukkan <strong>URL Wordle</strong>, <strong>URL Anagram</strong>, dan <strong>URL Leaderboard</strong> sebagai Browser Source terpisah di OBS agar Anda bisa bebas menggeser, memperbesar, dan menata layout masing-masing di layar stream!</em>
               </p>
             </div>
           )}
@@ -385,12 +419,12 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1.5rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '1rem' }}>📏 Baris Wordle di Layar:</label>
+          <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1.2rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '600', fontSize: '0.95rem' }}>📏 Baris Wordle di Layar:</label>
             <select 
               value={gameState?.maxRows || 6} 
               onChange={handleMaxRowsChange}
-              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', width: '100%', fontSize: '1rem' }}
+              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', width: '100%', fontSize: '0.95rem' }}
             >
               <option value={3}>3 Baris</option>
               <option value={4}>4 Baris</option>
@@ -403,11 +437,11 @@ export default function AdminDashboard() {
           </div>
 
           <div style={{ marginTop: '1.2rem', borderTop: '1px solid #eee', paddingTop: '1.2rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '1rem' }}>📝 Jumlah Baris Kata Anagram (1–6 Kata):</label>
+            <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '600', fontSize: '0.95rem' }}>📝 Jumlah Baris Kata Anagram (1–6 Kata):</label>
             <select 
               value={gameState?.anagramRows || anagramRows} 
               onChange={handleAnagramRowsChange}
-              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', width: '100%', fontSize: '1rem' }}
+              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', width: '100%', fontSize: '0.95rem' }}
             >
               <option value={1}>1 Kata (Single)</option>
               <option value={2}>2 Kata</option>
@@ -418,8 +452,44 @@ export default function AdminDashboard() {
             </select>
           </div>
 
-          <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>🧪 Tes Tebak (Simulasi Admin)</h3>
+          {/* LEADERBOARD CONTROLS */}
+          <div style={{ marginTop: '1.2rem', borderTop: '1px solid #eee', paddingTop: '1.2rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '600', fontSize: '0.95rem' }}>🏆 Jumlah Baris Leaderboard (Maks 20):</label>
+            <select 
+              value={gameState?.maxLeaderboardRows || 10} 
+              onChange={handleLeaderboardLimitChange}
+              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', width: '100%', fontSize: '0.95rem' }}
+            >
+              <option value={3}>3 Teratas</option>
+              <option value={5}>5 Teratas</option>
+              <option value={8}>8 Teratas</option>
+              <option value={10}>10 Teratas (Default)</option>
+              <option value={15}>15 Teratas</option>
+              <option value={20}>20 Teratas (Maksimal)</option>
+            </select>
+
+            <button 
+              type="button"
+              onClick={handleResetLeaderboardConfirm}
+              style={{ 
+                marginTop: '0.8rem',
+                width: '100%',
+                padding: '0.6rem', 
+                background: '#ef4444', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '6px', 
+                cursor: 'pointer', 
+                fontWeight: 'bold', 
+                fontSize: '0.85rem'
+              }}
+            >
+              🔄 Reset Poin & Leaderboard
+            </button>
+          </div>
+
+          <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1.2rem' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>🧪 Tes Tebak (Simulasi Admin)</h3>
             <form onSubmit={handleSendGuess} style={{ display: 'flex', gap: '0.5rem' }}>
               <input 
                 type="text" 
@@ -480,13 +550,13 @@ export default function AdminDashboard() {
 
               {/* ANAGRAM STATUS BLOCK */}
               {(gameState.mode === 'anagram' || gameState.mode === 'dual') && (
-                <div style={{ padding: '0.8rem', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '8px', marginBottom: '0.8rem' }}>
+                <div style={{ padding: '0.8rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', marginBottom: '0.8rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                    <strong style={{ color: '#5b21b6' }}>🟪 Anagram:</strong>
+                    <strong style={{ color: '#1e40af' }}>🟦 Anagram:</strong>
                     <span style={{ 
                       fontSize: '0.8rem', 
                       fontWeight: 'bold', 
-                      color: gameState.anagramStatus === 'won' ? '#16a34a' : '#7c3aed' 
+                      color: gameState.anagramStatus === 'won' ? '#16a34a' : '#2563eb' 
                     }}>
                       {gameState.anagramStatus === 'won' 
                         ? '✅ Semua Tertebak' 
@@ -511,7 +581,7 @@ export default function AdminDashboard() {
                             {item.targetWord}
                           </span>
                           <span style={{ marginLeft: '0.3rem', fontSize: '0.75rem', color: '#6b7280' }}>
-                            (Acak: <strong style={{ color: '#8b5cf6', textTransform: 'uppercase' }}>{item.scrambledWord}</strong>)
+                            (Acak: <strong style={{ color: '#2563eb', textTransform: 'uppercase' }}>{item.scrambledWord}</strong>)
                           </span>
                         </div>
                         <div>
@@ -531,8 +601,47 @@ export default function AdminDashboard() {
                 </div>
               )}
 
+              {/* LIVE LEADERBOARD PREVIEW IN DASHBOARD */}
+              <div style={{ padding: '0.8rem', background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '8px', marginBottom: '0.8rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <strong style={{ color: '#b45309' }}>🏆 Top Pemenang (Leaderboard):</strong>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#d97706' }}>
+                    {gameState.leaderboard?.length || 0} Pemain Tercatat
+                  </span>
+                </div>
+
+                {(gameState.leaderboard || []).length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '160px', overflowY: 'auto' }}>
+                    {(gameState.leaderboard || []).slice(0, gameState.maxLeaderboardRows || 10).map((player, idx) => (
+                      <div key={idx} style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between',
+                        padding: '0.25rem 0.5rem',
+                        background: 'white',
+                        borderRadius: '4px',
+                        border: '1px solid #fde68a',
+                        fontSize: '0.8rem'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span style={{ fontWeight: 'bold', minWidth: '1.2rem' }}>
+                            {idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : `#${idx + 1}`))}
+                          </span>
+                          <span style={{ fontWeight: 'bold', color: '#1f2937' }}>{player.nickname}</span>
+                        </div>
+                        <span style={{ fontWeight: 'bold', color: '#d97706', background: '#fef3c7', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                          ⭐ {player.points} Pts
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ fontSize: '0.8rem', color: '#92400e', margin: 0 }}>Belum ada pemenang yang tercatat.</p>
+                )}
+              </div>
+
               {/* POOL TRACKING PROGRESS */}
-              <div style={{ marginTop: '0.8rem', padding: '0.6rem 0.8rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+              <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
                   <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#475569' }}>
                     📚 Pool Kata Digunakan:
@@ -550,7 +659,7 @@ export default function AdminDashboard() {
                     transition: 'width 0.3s ease'
                   }} />
                 </div>
-                <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.35rem' }}>
+                <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.35rem', marginBottom: 0 }}>
                   ✨ <em>Kata target tidak akan pernah diulang sampai seluruh 1.958 kata habis.</em>
                 </p>
               </div>

@@ -2,11 +2,44 @@ import React, { useState, useEffect, useRef } from 'react';
 import Peer from 'peerjs';
 import WordleBoard from '../components/WordleBoard';
 import AnagramBoard from '../components/AnagramBoard';
+import LeaderboardBoard from '../components/LeaderboardBoard';
 import WinCard from '../components/WinCard';
 import TimeoutCard from '../components/TimeoutCard';
 
 export default function Overlay() {
-  // Game state (Wordle & Anagram & Dual Mode)
+  // Persistence helpers for Leaderboard
+  const loadLeaderboard = () => {
+    try {
+      const saved = localStorage.getItem('yotebak_leaderboard');
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr)) return arr;
+      }
+    } catch (_) {}
+    return [];
+  };
+
+  const saveLeaderboard = (data) => {
+    try {
+      localStorage.setItem('yotebak_leaderboard', JSON.stringify(data));
+    } catch (_) {}
+  };
+
+  const loadMaxLeaderboardRows = () => {
+    try {
+      const saved = localStorage.getItem('yotebak_max_leaderboard_rows');
+      if (saved) return Number(saved) || 10;
+    } catch (_) {}
+    return 10;
+  };
+
+  const saveMaxLeaderboardRows = (limit) => {
+    try {
+      localStorage.setItem('yotebak_max_leaderboard_rows', String(limit));
+    } catch (_) {}
+  };
+
+  // Game state (Wordle & Anagram & Dual Mode & Leaderboard)
   const [gameState, setGameState] = useState({
     mode: 'wordle', // 'wordle' | 'anagram' | 'dual'
     // Wordle state
@@ -21,6 +54,9 @@ export default function Overlay() {
     anagramStatus: 'playing', // 'playing' | 'won'
     anagramWinner: null,
     anagramRows: 3,
+    // Leaderboard state
+    leaderboard: loadLeaderboard(),
+    maxLeaderboardRows: loadMaxLeaderboardRows(),
     // Status fallback
     status: 'playing',
     winner: null,
@@ -47,11 +83,55 @@ export default function Overlay() {
   const peerRef = useRef(null);
   const connectionsRef = useRef([]);
   const [roomCode, setRoomCode] = useState('');
-  const [viewType, setViewType] = useState('all'); // 'all' | 'wordle' | 'anagram'
+  const [viewType, setViewType] = useState('all'); // 'all' | 'wordle' | 'anagram' | 'leaderboard'
 
   // Keep refs of gameState to avoid closure stale state
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
+
+  // Record win to leaderboard helper
+  const recordWin = (user, currentState) => {
+    if (!user || !user.nickname || user.nickname === 'Host' || user.nickname === 'Last Word' || user.nickname === 'Kata Lalu') {
+      return currentState.leaderboard || [];
+    }
+
+    const currentList = currentState.leaderboard || loadLeaderboard();
+    const list = [...currentList];
+    const cleanNick = user.nickname.trim();
+    const existingIdx = list.findIndex(p => (p.nickname || '').toLowerCase() === cleanNick.toLowerCase());
+
+    if (existingIdx !== -1) {
+      list[existingIdx] = {
+        ...list[existingIdx],
+        points: (list[existingIdx].points || 0) + 1,
+        profilePic: user.profilePic || list[existingIdx].profilePic,
+        lastWinAt: Date.now()
+      };
+    } else {
+      list.push({
+        nickname: cleanNick,
+        profilePic: user.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanNick)}&background=2563eb&color=fff`,
+        points: 1,
+        lastWinAt: Date.now()
+      });
+    }
+
+    // Sort descending by points, then by latest win time
+    list.sort((a, b) => (b.points - a.points) || (b.lastWinAt - a.lastWinAt));
+    saveLeaderboard(list);
+    return list;
+  };
+
+  // Reset leaderboard helper
+  const handleResetLeaderboard = () => {
+    saveLeaderboard([]);
+    setGameState(prev => {
+      const updated = { ...prev, leaderboard: [] };
+      gameStateRef.current = updated;
+      broadcastState(updated);
+      return updated;
+    });
+  };
 
   // Robust auto-restart for single and dual modes (immune to background tab throttling)
   useEffect(() => {
@@ -97,6 +177,26 @@ export default function Overlay() {
 
     return () => clearInterval(checkRestart);
   }, [gameState.mode, gameState.wordleStatus, gameState.anagramStatus]);
+
+  // Persistence helpers for played words pool
+  const loadPlayedWords = () => {
+    try {
+      const saved = localStorage.getItem('yotebak_played_words');
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr)) {
+          return new Set(arr);
+        }
+      }
+    } catch (_) {}
+    return new Set();
+  };
+
+  const savePlayedWords = (set) => {
+    try {
+      localStorage.setItem('yotebak_played_words', JSON.stringify(Array.from(set)));
+    } catch (_) {}
+  };
 
   // 1. Fetch word list files
   useEffect(() => {
@@ -146,7 +246,7 @@ export default function Overlay() {
     setRoomCode(room);
     setViewType(view);
 
-    const viewSuffix = view === 'wordle' ? '-wordle' : (view === 'anagram' ? '-anagram' : '');
+    const viewSuffix = view === 'wordle' ? '-wordle' : (view === 'anagram' ? '-anagram' : (view === 'leaderboard' ? '-leaderboard' : ''));
     const peerId = `overlay-game-${room}${viewSuffix}`;
     const peer = new Peer(peerId);
     peerRef.current = peer;
@@ -184,6 +284,17 @@ export default function Overlay() {
         } else if (data.type === 'updateAnagramRows') {
           setGameState(prev => {
             const newState = { ...prev, anagramRows: data.anagramRows };
+            gameStateRef.current = newState;
+            broadcastState(newState);
+            return newState;
+          });
+        } else if (data.type === 'resetLeaderboard') {
+          handleResetLeaderboard();
+        } else if (data.type === 'updateLeaderboardLimit') {
+          const limit = Math.min(Math.max(Number(data.limit) || 10, 1), 20);
+          saveMaxLeaderboardRows(limit);
+          setGameState(prev => {
+            const newState = { ...prev, maxLeaderboardRows: limit };
             gameStateRef.current = newState;
             broadcastState(newState);
             return newState;
@@ -235,26 +346,6 @@ export default function Overlay() {
     });
   };
 
-  // Persistence helpers for played words pool
-  const loadPlayedWords = () => {
-    try {
-      const saved = localStorage.getItem('yotebak_played_words');
-      if (saved) {
-        const arr = JSON.parse(saved);
-        if (Array.isArray(arr)) {
-          return new Set(arr);
-        }
-      }
-    } catch (_) {}
-    return new Set();
-  };
-
-  const savePlayedWords = (set) => {
-    try {
-      localStorage.setItem('yotebak_played_words', JSON.stringify(Array.from(set)));
-    } catch (_) {}
-  };
-
   // Draw a guaranteed unique non-repeated target word until all pool words are exhausted
   const drawTargetWord = (targets = targetWordsRef.current) => {
     if (!targets || targets.length === 0) return 'segar';
@@ -277,7 +368,7 @@ export default function Overlay() {
     return picked;
   };
 
-  // Get a random hint word for "Kata Lalu" (does NOT consume from the target pool)
+  // Get a random hint word for "Last Word" (does NOT consume from the target pool)
   const getRandomHintWord = (targets = targetWordsRef.current) => {
     if (!targets || targets.length === 0) return 'makan';
     return targets[Math.floor(Math.random() * targets.length)];
@@ -346,6 +437,9 @@ export default function Overlay() {
       anagramStatus: 'playing',
       anagramWinner: null,
       anagramRows: validAnagramRows,
+      // Leaderboard fields
+      leaderboard: gameStateRef.current?.leaderboard || loadLeaderboard(),
+      maxLeaderboardRows: gameStateRef.current?.maxLeaderboardRows || loadMaxLeaderboardRows(),
       // Pool tracking fields
       poolPlayed: playedWordsRef.current.size,
       poolTotal: targets.length || 1958,
@@ -410,41 +504,31 @@ export default function Overlay() {
     setAnagramWinState({ show: false, winner: null, word: '' });
   };
 
-  // Check word validity
-  const checkWordleGuess = (guessStr) => {
-    if (guessStr.length !== 5) return false;
-    if (!validWordsSetRef.current.has(guessStr)) return false;
-    return true;
+  // Sanitize helper
+  const sanitize = (text) => {
+    return text.replace(/[^a-zA-Z]/g, '').toLowerCase();
   };
 
-  // Sanitize text: strip all non-alphabetic characters
-  const sanitize = (text) => text.replace(/[^a-zA-Z]/g, '').toLowerCase();
-
-  // Extract a valid 5-letter word from chat text (with TikTok bypass handling)
+  // Extract 5-letter valid guess from chat text
   const extractGuess = (chatText) => {
-    const parts = chatText.split(/\s+/);
-    for (const part of parts) {
-      if (part.length === 5 && checkWordleGuess(part)) {
-        return part;
-      }
+    const directWord = sanitize(chatText);
+    if (directWord.length === 5 && validWordsSetRef.current.has(directWord)) {
+      return directWord;
     }
 
-    for (const part of parts) {
-      const cleaned = sanitize(part);
-      if (cleaned.length === 5 && checkWordleGuess(cleaned)) {
+    const words = chatText.split(/\s+/);
+    for (const w of words) {
+      const cleaned = sanitize(w);
+      if (cleaned.length === 5 && validWordsSetRef.current.has(cleaned)) {
         return cleaned;
       }
     }
 
-    const fullCleaned = sanitize(chatText);
-    if (fullCleaned.length === 5 && checkWordleGuess(fullCleaned)) {
-      return fullCleaned;
-    }
-
-    if (fullCleaned.length > 5) {
-      for (let i = 0; i <= fullCleaned.length - 5; i++) {
-        const sub = fullCleaned.substring(i, i + 5);
-        if (checkWordleGuess(sub)) {
+    const compactText = sanitize(chatText);
+    if (compactText.length >= 5) {
+      for (let i = 0; i <= compactText.length - 5; i++) {
+        const sub = compactText.substring(i, i + 5);
+        if (validWordsSetRef.current.has(sub)) {
           return sub;
         }
       }
@@ -587,11 +671,15 @@ export default function Overlay() {
         const allSolved = updatedAnagramWords.every(w => w.solved);
         const newAnagramStatus = allSolved ? 'won' : 'playing';
 
+        // Add win points to Leaderboard
+        const updatedLeaderboard = recordWin(user, updatedState);
+
         updatedState = {
           ...updatedState,
           anagramWords: updatedAnagramWords,
           anagramStatus: newAnagramStatus,
           anagramWinner: allSolved ? user : updatedState.anagramWinner,
+          leaderboard: updatedLeaderboard,
         };
         stateChanged = true;
 
@@ -614,6 +702,10 @@ export default function Overlay() {
         if (guessStr === updatedState.targetWord) {
           newWordleStatus = 'won';
           wordleWinner = user;
+
+          // Add win points to Leaderboard
+          const updatedLeaderboard = recordWin(user, updatedState);
+          updatedState.leaderboard = updatedLeaderboard;
         }
 
         updatedState = {
@@ -651,6 +743,7 @@ export default function Overlay() {
 
   const showWordle = viewType === 'wordle' || (viewType === 'all' && (gameState.mode === 'wordle' || gameState.mode === 'dual'));
   const showAnagram = viewType === 'anagram' || (viewType === 'all' && (gameState.mode === 'anagram' || gameState.mode === 'dual'));
+  const showLeaderboard = viewType === 'leaderboard' || viewType === 'all';
 
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', padding: '1.5rem', overflow: 'hidden' }}>
@@ -698,6 +791,13 @@ export default function Overlay() {
                 onExited={() => setAnagramWinState((prev) => ({ ...prev, winner: null }))}
               />
             )}
+          </div>
+        )}
+
+        {/* LEADERBOARD BOARD (Bisa dipisah atau disatukan) */}
+        {showLeaderboard && (
+          <div style={{ position: 'relative', width: 'fit-content' }}>
+            <LeaderboardBoard gameState={gameState} />
           </div>
         )}
 
