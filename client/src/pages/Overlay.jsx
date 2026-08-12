@@ -6,26 +6,37 @@ import WinCard from '../components/WinCard';
 import TimeoutCard from '../components/TimeoutCard';
 
 export default function Overlay() {
-  // Game state (Wordle & Anagram)
+  // Game state (Wordle & Anagram & Dual Mode)
   const [gameState, setGameState] = useState({
-    mode: 'wordle',
+    mode: 'wordle', // 'wordle' | 'anagram' | 'dual'
+    // Wordle state
     targetWord: 'buku',
-    scrambledWord: '',
     guesses: [],
+    wordleStatus: 'playing', // 'playing' | 'won'
+    wordleWinner: null,
+    maxRows: 6,
+    // Anagram state
+    scrambledWord: '',
+    anagramWords: [],
+    anagramStatus: 'playing', // 'playing' | 'won'
+    anagramWinner: null,
+    anagramRows: 3,
+    // Status fallback
     status: 'playing',
     winner: null,
-    maxRows: 6,
   });
 
-  const [winState, setWinState] = useState({ show: false, winner: null, word: '', mode: '' });
+  const [wordleWinState, setWordleWinState] = useState({ show: false, winner: null, word: '' });
+  const [anagramWinState, setAnagramWinState] = useState({ show: false, winner: null, word: '' });
   const [timeoutState, setTimeoutState] = useState({ show: false, word: '' });
 
   // TikFinity connection status
   const tikFinityConnectedRef = useRef(false);
 
-  // Auto-restart: track when game ended (using real timestamp, not setTimeout)
+  // Auto-restart: timestamps for Wordle and Anagram
   const RESTART_DELAY_MS = 10000;
-  const endedAtRef = useRef(null);
+  const wordleEndedAtRef = useRef(null);
+  const anagramEndedAtRef = useRef(null);
 
   // Word databases
   const targetWordsRef = useRef([]);
@@ -36,39 +47,56 @@ export default function Overlay() {
   const peerRef = useRef(null);
   const connectionsRef = useRef([]);
   const [roomCode, setRoomCode] = useState('');
+  const [viewType, setViewType] = useState('all'); // 'all' | 'wordle' | 'anagram'
 
-  // Keep refs of gameState, playedWords, etc. to avoid closure stale state in async callbacks
+  // Keep refs of gameState to avoid closure stale state
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
 
-  // Robust auto-restart: uses Date.now() to check real elapsed time
-  // This is immune to browser timer throttling in background tabs / embedded browsers
+  // Robust auto-restart for single and dual modes (immune to background tab throttling)
   useEffect(() => {
-    if (gameState.status !== 'won' && gameState.status !== 'lost') {
-      endedAtRef.current = null;
-      return;
+    // Wordle end tracking
+    if (gameState.mode === 'wordle' || gameState.mode === 'dual') {
+      if (gameState.wordleStatus === 'won') {
+        if (!wordleEndedAtRef.current) wordleEndedAtRef.current = Date.now();
+      } else {
+        wordleEndedAtRef.current = null;
+      }
     }
 
-    // Record the timestamp when game ended (only once)
-    if (!endedAtRef.current) {
-      endedAtRef.current = Date.now();
+    // Anagram end tracking
+    if (gameState.mode === 'anagram' || gameState.mode === 'dual') {
+      if (gameState.anagramStatus === 'won') {
+        if (!anagramEndedAtRef.current) anagramEndedAtRef.current = Date.now();
+      } else {
+        anagramEndedAtRef.current = null;
+      }
     }
 
     const checkRestart = setInterval(() => {
-      if (!endedAtRef.current) {
-        clearInterval(checkRestart);
-        return;
+      const now = Date.now();
+
+      if (wordleEndedAtRef.current && (now - wordleEndedAtRef.current >= RESTART_DELAY_MS)) {
+        wordleEndedAtRef.current = null;
+        if (gameStateRef.current.mode === 'dual') {
+          restartWordlePart();
+        } else if (gameStateRef.current.mode === 'wordle') {
+          initGame('wordle');
+        }
       }
-      const elapsed = Date.now() - endedAtRef.current;
-      if (elapsed >= RESTART_DELAY_MS) {
-        clearInterval(checkRestart);
-        endedAtRef.current = null;
-        initGame(gameStateRef.current.mode);
+
+      if (anagramEndedAtRef.current && (now - anagramEndedAtRef.current >= RESTART_DELAY_MS)) {
+        anagramEndedAtRef.current = null;
+        if (gameStateRef.current.mode === 'dual') {
+          restartAnagramPart();
+        } else if (gameStateRef.current.mode === 'anagram') {
+          initGame('anagram');
+        }
       }
     }, 1000);
 
     return () => clearInterval(checkRestart);
-  }, [gameState.status, gameState.targetWord]);
+  }, [gameState.mode, gameState.wordleStatus, gameState.anagramStatus]);
 
   // 1. Fetch word list files
   useEffect(() => {
@@ -113,9 +141,12 @@ export default function Overlay() {
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const room = query.get('room') || 'default_room';
+    const view = (query.get('view') || query.get('type') || 'all').toLowerCase();
     setRoomCode(room);
+    setViewType(view);
 
-    const peerId = `overlay-game-${room}`;
+    const viewSuffix = view === 'wordle' ? '-wordle' : (view === 'anagram' ? '-anagram' : '');
+    const peerId = `overlay-game-${room}${viewSuffix}`;
     const peer = new Peer(peerId);
     peerRef.current = peer;
 
@@ -135,7 +166,7 @@ export default function Overlay() {
 
       conn.on('data', (data) => {
         if (data.type === 'startGame') {
-          initGame(data.mode, data.word);
+          initGame(data.mode, data.word, null, data.anagramRows);
         } else if (data.type === 'adminGuess') {
           handleChat({
             comment: data.guess,
@@ -145,6 +176,14 @@ export default function Overlay() {
         } else if (data.type === 'updateMaxRows') {
           setGameState(prev => {
             const newState = { ...prev, maxRows: data.maxRows };
+            gameStateRef.current = newState;
+            broadcastState(newState);
+            return newState;
+          });
+        } else if (data.type === 'updateAnagramRows') {
+          setGameState(prev => {
+            const newState = { ...prev, anagramRows: data.anagramRows };
+            gameStateRef.current = newState;
             broadcastState(newState);
             return newState;
           });
@@ -184,6 +223,217 @@ export default function Overlay() {
         conn.send({ type: 'tikFinityStatus', connected });
       }
     });
+  };
+
+  // Broadcast state changes to all connected Admin Peers
+  const broadcastState = (state) => {
+    connectionsRef.current.forEach((conn) => {
+      if (conn.open) {
+        conn.send({ type: 'gameState', state });
+      }
+    });
+  };
+
+  // Helper: Pick random word
+  const pickRandomWord = (targets = targetWordsRef.current) => {
+    if (targets.length === 0) return 'segar';
+    let available = targets.filter(w => !playedWordsRef.current.has(w));
+    if (available.length === 0) {
+      playedWordsRef.current.clear();
+      available = targets;
+    }
+    const picked = available[Math.floor(Math.random() * available.length)];
+    playedWordsRef.current.add(picked);
+    return picked;
+  };
+
+  // Helper: Scramble word (ensures scrambled is different from word)
+  const scrambleWord = (word) => {
+    const arr = word.split('');
+    let scrambled = word;
+    let attempts = 0;
+    while (scrambled === word && attempts < 10) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      scrambled = arr.join('');
+      attempts++;
+    }
+    return scrambled;
+  };
+
+  // Helper: Generate list of anagram words
+  const generateAnagramWords = (targets, count) => {
+    const chosenWords = [];
+    while (chosenWords.length < count) {
+      const picked = pickRandomWord(targets);
+      if (!chosenWords.includes(picked)) {
+        chosenWords.push(picked);
+      }
+    }
+    return chosenWords.map((w, idx) => ({
+      id: idx + 1,
+      targetWord: w,
+      scrambledWord: scrambleWord(w),
+      solved: false,
+      winner: null,
+    }));
+  };
+
+  // Initialize Game (Wordle, Anagram, or Dual)
+  const initGame = (mode, specificWord = null, overrideTargets = null, anagramCount = null) => {
+    const targets = overrideTargets || targetWordsRef.current;
+    const lastTargetWord = gameStateRef.current ? gameStateRef.current.targetWord : null;
+    const oldMaxRows = gameStateRef.current ? (gameStateRef.current.maxRows || 6) : 6;
+    const count = anagramCount || (gameStateRef.current ? (gameStateRef.current.anagramRows || 3) : 3);
+    const validAnagramRows = Math.min(Math.max(Number(count) || 3, 1), 6);
+
+    const wordleWord = specificWord ? specificWord.toLowerCase() : pickRandomWord(targets);
+    const firstGuess = (lastTargetWord && lastTargetWord.length === 5) ? lastTargetWord : pickRandomWord(targets);
+    const anagramList = generateAnagramWords(targets, validAnagramRows);
+
+    const newGameState = {
+      mode: mode,
+      // Wordle fields
+      targetWord: wordleWord,
+      guesses: (mode === 'wordle' || mode === 'dual') ? [{
+        word: firstGuess,
+        user: { nickname: 'Kata Lalu', profilePic: 'https://ui-avatars.com/api/?name=Lalu&background=4ca371&color=fff' }
+      }] : [],
+      wordleStatus: 'playing',
+      wordleWinner: null,
+      maxRows: oldMaxRows,
+      // Anagram fields
+      scrambledWord: anagramList[0]?.scrambledWord || '',
+      anagramWords: anagramList,
+      anagramStatus: 'playing',
+      anagramWinner: null,
+      anagramRows: validAnagramRows,
+      // Fallback overall status
+      status: 'playing',
+      winner: null,
+    };
+
+    gameStateRef.current = newGameState;
+    setGameState(newGameState);
+    setWordleWinState({ show: false, winner: null, word: '' });
+    setAnagramWinState({ show: false, winner: null, word: '' });
+    setTimeoutState({ show: false, word: '' });
+    broadcastState(newGameState);
+  };
+
+  // Restart only Wordle section during Dual Mode
+  const restartWordlePart = () => {
+    const targets = targetWordsRef.current;
+    const lastWordleWord = gameStateRef.current ? gameStateRef.current.targetWord : null;
+    const newWord = pickRandomWord(targets);
+    const firstGuess = (lastWordleWord && lastWordleWord.length === 5) ? lastWordleWord : pickRandomWord(targets);
+
+    setGameState(prev => {
+      const updated = {
+        ...prev,
+        targetWord: newWord,
+        guesses: [{
+          word: firstGuess,
+          user: { nickname: 'Kata Lalu', profilePic: 'https://ui-avatars.com/api/?name=Lalu&background=4ca371&color=fff' }
+        }],
+        wordleStatus: 'playing',
+        wordleWinner: null,
+      };
+      gameStateRef.current = updated;
+      broadcastState(updated);
+      return updated;
+    });
+    setWordleWinState({ show: false, winner: null, word: '' });
+  };
+
+  // Restart only Anagram section during Dual Mode
+  const restartAnagramPart = () => {
+    const targets = targetWordsRef.current;
+    const validRows = gameStateRef.current?.anagramRows || 3;
+    const anagramList = generateAnagramWords(targets, validRows);
+
+    setGameState(prev => {
+      const updated = {
+        ...prev,
+        scrambledWord: anagramList[0]?.scrambledWord || '',
+        anagramWords: anagramList,
+        anagramStatus: 'playing',
+        anagramWinner: null,
+      };
+      gameStateRef.current = updated;
+      broadcastState(updated);
+      return updated;
+    });
+    setAnagramWinState({ show: false, winner: null, word: '' });
+  };
+
+  // Check word validity
+  const checkWordleGuess = (guessStr) => {
+    if (guessStr.length !== 5) return false;
+    if (!validWordsSetRef.current.has(guessStr)) return false;
+    return true;
+  };
+
+  // Sanitize text: strip all non-alphabetic characters
+  const sanitize = (text) => text.replace(/[^a-zA-Z]/g, '').toLowerCase();
+
+  // Extract a valid 5-letter word from chat text (with TikTok bypass handling)
+  const extractGuess = (chatText) => {
+    const parts = chatText.split(/\s+/);
+    for (const part of parts) {
+      if (part.length === 5 && checkWordleGuess(part)) {
+        return part;
+      }
+    }
+
+    for (const part of parts) {
+      const cleaned = sanitize(part);
+      if (cleaned.length === 5 && checkWordleGuess(cleaned)) {
+        return cleaned;
+      }
+    }
+
+    const fullCleaned = sanitize(chatText);
+    if (fullCleaned.length === 5 && checkWordleGuess(fullCleaned)) {
+      return fullCleaned;
+    }
+
+    if (fullCleaned.length > 5) {
+      for (let i = 0; i <= fullCleaned.length - 5; i++) {
+        const sub = fullCleaned.substring(i, i + 5);
+        if (checkWordleGuess(sub)) {
+          return sub;
+        }
+      }
+    }
+
+    return '';
+  };
+
+  // Extract anagram answer from chat text (with TikTok bypass handling)
+  const extractAnagramGuess = (chatText, targetWord) => {
+    if (chatText === targetWord) return targetWord;
+
+    const parts = chatText.split(/\s+/);
+    for (const part of parts) {
+      if (part === targetWord) return targetWord;
+      const cleaned = sanitize(part);
+      if (cleaned === targetWord) return targetWord;
+    }
+
+    const fullCleaned = sanitize(chatText);
+    if (fullCleaned === targetWord) return targetWord;
+
+    if (fullCleaned.length > targetWord.length) {
+      for (let i = 0; i <= fullCleaned.length - targetWord.length; i++) {
+        const sub = fullCleaned.substring(i, i + targetWord.length);
+        if (sub === targetWord) return targetWord;
+      }
+    }
+
+    return '';
   };
 
   // 3. Connect to local TikFinity WebSocket (with retry limits)
@@ -242,7 +492,7 @@ export default function Overlay() {
       };
 
       ws.onerror = () => {
-        // Just let onclose handle the reconnect
+        // Just let onclose handle reconnect
       };
     };
 
@@ -258,217 +508,156 @@ export default function Overlay() {
     };
   }, []);
 
-  // Broadcast state changes to all connected Admin Peers
-  const broadcastState = (state) => {
-    connectionsRef.current.forEach((conn) => {
-      if (conn.open) {
-        conn.send({ type: 'gameState', state });
-      }
-    });
-  };
-
-  // Helper: Pick random word
-  const pickRandomWord = (targets = targetWordsRef.current) => {
-    if (targets.length === 0) return 'segar';
-    let available = targets.filter(w => !playedWordsRef.current.has(w));
-    if (available.length === 0) {
-      playedWordsRef.current.clear();
-      available = targets;
-    }
-    const picked = available[Math.floor(Math.random() * available.length)];
-    playedWordsRef.current.add(picked);
-    return picked;
-  };
-
-  // Helper: Scramble word
-  const scrambleWord = (word) => {
-    const arr = word.split('');
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr.join('');
-  };
-
-  // Initialize Game
-  const initGame = (mode, specificWord = null, overrideTargets = null) => {
-    const targets = overrideTargets || targetWordsRef.current;
-    const lastTargetWord = gameStateRef.current ? gameStateRef.current.targetWord : null;
-    const word = specificWord ? specificWord.toLowerCase() : pickRandomWord(targets);
-    const oldMaxRows = gameStateRef.current ? (gameStateRef.current.maxRows || 6) : 6;
-
-    const newGameState = {
-      mode: mode,
-      targetWord: word,
-      scrambledWord: mode === 'anagram' ? scrambleWord(word) : '',
-      guesses: [],
-      status: 'playing',
-      winner: null,
-      maxRows: oldMaxRows,
-    };
-
-    if (mode === 'wordle') {
-      const firstGuess = (lastTargetWord && lastTargetWord.length === 5) ? lastTargetWord : pickRandomWord(targets);
-      newGameState.guesses.push({
-        word: firstGuess,
-        user: { nickname: 'Kata Lalu', profilePic: 'https://ui-avatars.com/api/?name=Lalu&background=4ca371&color=fff' }
-      });
-    }
-
-    setGameState(newGameState);
-    setWinState({ show: false, winner: null, word: '', mode: '' });
-    setTimeoutState({ show: false, word: '' });
-    broadcastState(newGameState);
-  };
-
-  // Check word validity
-  const checkWordleGuess = (guessStr) => {
-    if (guessStr.length !== 5) return false;
-    if (!validWordsSetRef.current.has(guessStr)) return false;
-    return true;
-  };
-
-  // Sanitize text: strip all non-alphabetic characters
-  const sanitize = (text) => text.replace(/[^a-zA-Z]/g, '').toLowerCase();
-
-  // Extract a valid 5-letter word from chat text (with TikTok bypass handling)
-  const extractGuess = (chatText) => {
-    // Strategy 1: Exact 5-letter word from space-separated parts
-    // Handles: "makan", "makan bang", "coba makan yuk"
-    const parts = chatText.split(/\s+/);
-    for (const part of parts) {
-      if (part.length === 5 && checkWordleGuess(part)) {
-        return part;
-      }
-    }
-
-    // Strategy 2: Clean each individual part (remove dots/symbols within a word)
-    // Handles: ".MAKAN", "MA.KAN", "M.A.K.A.N", "makan!", "makan."
-    for (const part of parts) {
-      const cleaned = sanitize(part);
-      if (cleaned.length === 5 && checkWordleGuess(cleaned)) {
-        return cleaned;
-      }
-    }
-
-    // Strategy 3: Clean the ENTIRE text (strip all non-alpha)
-    // Handles: "MA KAN", "M A K A N", "MA. KAN"
-    const fullCleaned = sanitize(chatText);
-    if (fullCleaned.length === 5 && checkWordleGuess(fullCleaned)) {
-      return fullCleaned;
-    }
-
-    // Strategy 4: Sliding window on cleaned text (find valid 5-letter substring)
-    // Handles: "halo makan", "cobamakanyuk" (after cleaning)
-    if (fullCleaned.length > 5) {
-      for (let i = 0; i <= fullCleaned.length - 5; i++) {
-        const sub = fullCleaned.substring(i, i + 5);
-        if (checkWordleGuess(sub)) {
-          return sub;
-        }
-      }
-    }
-
-    return '';
-  };
-
-  // Extract anagram answer from chat text (with TikTok bypass handling)
-  const extractAnagramGuess = (chatText, targetWord) => {
-    // Strategy 1: Direct match
-    if (chatText === targetWord) return targetWord;
-
-    // Strategy 2: Match from space-separated parts
-    const parts = chatText.split(/\s+/);
-    for (const part of parts) {
-      if (part === targetWord) return targetWord;
-      const cleaned = sanitize(part);
-      if (cleaned === targetWord) return targetWord;
-    }
-
-    // Strategy 3: Clean entire text
-    const fullCleaned = sanitize(chatText);
-    if (fullCleaned === targetWord) return targetWord;
-
-    // Strategy 4: Sliding window
-    if (fullCleaned.length > targetWord.length) {
-      for (let i = 0; i <= fullCleaned.length - targetWord.length; i++) {
-        const sub = fullCleaned.substring(i, i + targetWord.length);
-        if (sub === targetWord) return targetWord;
-      }
-    }
-
-    return '';
-  };
-
-  // Handle comment event
+  // Handle comment event (Simultaneous routing for Dual Mode)
   const handleChat = (data) => {
     const state = gameStateRef.current;
-    if (state.status !== 'playing') return;
-
     const chatText = (data.comment || data.text || '').trim().toLowerCase();
     const user = {
       nickname: data.nickname || data.uniqueId || 'User',
       profilePic: data.profilePictureUrl || 'https://ui-avatars.com/api/?name=User'
     };
 
-    if (state.mode === 'wordle') {
+    let updatedState = { ...state };
+    let stateChanged = false;
+
+    // 1. Process Anagram
+    if ((state.mode === 'anagram' || state.mode === 'dual') && (state.anagramStatus !== 'won')) {
+      const anagramWords = state.anagramWords || [];
+      let solvedWordIndex = -1;
+
+      for (let i = 0; i < anagramWords.length; i++) {
+        if (!anagramWords[i].solved) {
+          const matched = extractAnagramGuess(chatText, anagramWords[i].targetWord);
+          if (matched) {
+            solvedWordIndex = i;
+            break;
+          }
+        }
+      }
+
+      if (solvedWordIndex !== -1) {
+        const updatedAnagramWords = anagramWords.map((w, idx) => {
+          if (idx === solvedWordIndex) {
+            return { ...w, solved: true, winner: user };
+          }
+          return w;
+        });
+
+        const allSolved = updatedAnagramWords.every(w => w.solved);
+        const newAnagramStatus = allSolved ? 'won' : 'playing';
+
+        updatedState = {
+          ...updatedState,
+          anagramWords: updatedAnagramWords,
+          anagramStatus: newAnagramStatus,
+          anagramWinner: allSolved ? user : updatedState.anagramWinner,
+        };
+        stateChanged = true;
+
+        if (allSolved) {
+          const allTargetWords = updatedAnagramWords.map(w => w.targetWord).join(', ');
+          setAnagramWinState({ show: true, winner: user, word: allTargetWords });
+        }
+      }
+    }
+
+    // 2. Process Wordle
+    if ((state.mode === 'wordle' || state.mode === 'dual') && (state.wordleStatus !== 'won')) {
       const guessStr = extractGuess(chatText);
 
       if (guessStr) {
-        const newGuesses = [...state.guesses, { word: guessStr, user }];
-        let newStatus = state.status;
-        let winner = state.winner;
+        const newGuesses = [...(updatedState.guesses || []), { word: guessStr, user }];
+        let newWordleStatus = updatedState.wordleStatus;
+        let wordleWinner = updatedState.wordleWinner;
 
-        if (guessStr === state.targetWord) {
-          newStatus = 'won';
-          winner = user;
+        if (guessStr === updatedState.targetWord) {
+          newWordleStatus = 'won';
+          wordleWinner = user;
         }
 
-        const updatedState = { ...state, guesses: newGuesses, status: newStatus, winner };
-        gameStateRef.current = updatedState; // Immediate sync update to prevent fast-chat race conditions
-        setGameState(updatedState);
-        broadcastState(updatedState);
+        updatedState = {
+          ...updatedState,
+          guesses: newGuesses,
+          wordleStatus: newWordleStatus,
+          wordleWinner: wordleWinner,
+        };
+        stateChanged = true;
 
-        if (newStatus === 'won') {
-          setWinState({ show: true, winner, word: state.targetWord, mode: state.mode });
+        if (newWordleStatus === 'won') {
+          setWordleWinState({ show: true, winner: user, word: updatedState.targetWord });
         }
       }
-    } else if (state.mode === 'anagram') {
-      const matched = extractAnagramGuess(chatText, state.targetWord);
-      if (matched) {
-        const updatedState = { ...state, status: 'won', winner: user };
-        gameStateRef.current = updatedState; // Immediate sync update
-        setGameState(updatedState);
-        broadcastState(updatedState);
-        setWinState({ show: true, winner: user, word: state.targetWord, mode: state.mode });
+    }
+
+    if (stateChanged) {
+      // Overall status update for backward compatibility
+      if (updatedState.mode === 'wordle') {
+        updatedState.status = updatedState.wordleStatus;
+        updatedState.winner = updatedState.wordleWinner;
+      } else if (updatedState.mode === 'anagram') {
+        updatedState.status = updatedState.anagramStatus;
+        updatedState.winner = updatedState.anagramWinner;
+      } else if (updatedState.mode === 'dual') {
+        updatedState.status = (updatedState.wordleStatus === 'won' && updatedState.anagramStatus === 'won') ? 'won' : 'playing';
+        updatedState.winner = updatedState.wordleWinner || updatedState.anagramWinner;
       }
+
+      gameStateRef.current = updatedState;
+      setGameState(updatedState);
+      broadcastState(updatedState);
     }
   };
 
+  const showWordle = viewType === 'wordle' || (viewType === 'all' && (gameState.mode === 'wordle' || gameState.mode === 'dual'));
+  const showAnagram = viewType === 'anagram' || (viewType === 'all' && (gameState.mode === 'anagram' || gameState.mode === 'dual'));
+
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', padding: '2rem', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', width: '100vw', height: '100vh', padding: '1.5rem', overflow: 'hidden' }}>
       {/* Koneksi Peer Indicator (hanya terlihat jika di luar OBS / butuh debug) */}
       <div style={{ position: 'absolute', top: 5, right: 5, fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', pointerEvents: 'none' }}>
-        Kamar: {roomCode}
+        Kamar: {roomCode} {viewType !== 'all' ? `(Khusus ${viewType.toUpperCase()})` : (gameState.mode === 'dual' ? '(Mode Dual)' : '')}
       </div>
 
-      <div style={{ position: 'relative', width: 'fit-content', minHeight: '420px' }}>
-        {gameState.mode === 'wordle' && (
-          <WordleBoard gameState={gameState} />
+      <div style={{ 
+        display: 'flex', 
+        gap: '2.5rem', 
+        alignItems: 'flex-start', 
+        flexWrap: 'wrap',
+        width: 'fit-content' 
+      }}>
+        
+        {/* WORDLE BOARD */}
+        {showWordle && (
+          <div style={{ position: 'relative', width: 'fit-content' }}>
+            <WordleBoard gameState={gameState} />
+
+            {wordleWinState.winner && (
+              <WinCard 
+                show={wordleWinState.show}
+                winner={wordleWinState.winner} 
+                word={wordleWinState.word} 
+                mode="wordle" 
+                onExited={() => setWordleWinState((prev) => ({ ...prev, winner: null }))}
+              />
+            )}
+          </div>
         )}
 
-        {gameState.mode === 'anagram' && (
-          <AnagramBoard gameState={gameState} />
-        )}
+        {/* ANAGRAM BOARD */}
+        {showAnagram && (
+          <div style={{ position: 'relative', width: 'fit-content' }}>
+            <AnagramBoard gameState={gameState} />
 
-        {winState.winner && (
-          <WinCard 
-            show={winState.show}
-            winner={winState.winner} 
-            word={winState.word} 
-            mode={winState.mode} 
-            onExited={() => setWinState((prev) => ({ ...prev, winner: null }))}
-          />
+            {anagramWinState.winner && (
+              <WinCard 
+                show={anagramWinState.show}
+                winner={anagramWinState.winner} 
+                word={anagramWinState.word} 
+                mode="anagram" 
+                onExited={() => setAnagramWinState((prev) => ({ ...prev, winner: null }))}
+              />
+            )}
+          </div>
         )}
 
         {timeoutState.show && (

@@ -99,48 +99,56 @@ export default function WinCard({ show, winner, word, mode, onExited }) {
         }} 
       />
       
-      <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', gap: '0.8rem' }}>
+      <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', gap: '0.7rem' }}>
         <h2 style={{ fontSize: '1.8rem', color: '#3f8c5c', fontWeight: '800', tracking: '-0.02em', margin: 0 }}>
-          Tepat Sekali!
+          {word.includes(',') ? 'Semua Kata Tertebak!' : 'Tepat Sekali!'}
         </h2>
         
         <div>
-          <span style={{ fontSize: '0.85rem', color: '#6b7280', display: 'block', marginBottom: '0.4rem' }}>
-            Kata rahasia:
+          <span style={{ fontSize: '0.85rem', color: '#6b7280', display: 'block', marginBottom: '0.35rem' }}>
+            {word.includes(',') ? 'Kata Rahasia:' : 'Kata rahasia:'}
           </span>
-          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
-            {word.split('').map((letter, i) => (
-              <div 
-                key={i}
-                style={{
-                  width: '3rem',
-                  height: '3rem',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  fontSize: '1.8rem',
-                  fontWeight: '800',
-                  textTransform: 'uppercase',
-                  color: 'white',
-                  backgroundColor: 'var(--wordle-correct)',
-                  borderRadius: '6px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  textShadow: '0px 1px 2px rgba(0,0,0,0.3)'
-                }}
-              >
-                {letter}
-              </div>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'center', maxHeight: '180px', overflowY: 'auto' }}>
+            {word.split(',').map((w, wIdx) => {
+              const trimmed = w.trim();
+              const isMulti = word.includes(',');
+              return (
+                <div key={wIdx} style={{ display: 'flex', gap: '0.3rem', justifyContent: 'center' }}>
+                  {trimmed.split('').map((letter, i) => (
+                    <div 
+                      key={i}
+                      style={{
+                        width: isMulti ? '2.4rem' : '3rem',
+                        height: isMulti ? '2.4rem' : '3rem',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        fontSize: isMulti ? '1.4rem' : '1.8rem',
+                        fontWeight: '800',
+                        textTransform: 'uppercase',
+                        color: 'white',
+                        backgroundColor: 'var(--wordle-correct)',
+                        borderRadius: '6px',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                        textShadow: '0px 1px 2px rgba(0,0,0,0.3)'
+                      }}
+                    >
+                      {letter}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </div>
         
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem', marginTop: '0.4rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
           <img 
             src={winner.profilePic} 
             alt="Winner Profile" 
             style={{ 
-              width: '95px', 
-              height: '95px', 
+              width: word.includes(',') ? '75px' : '90px', 
+              height: word.includes(',') ? '75px' : '90px', 
               borderRadius: '16px', 
               border: '3px solid white', 
               boxShadow: '0 4px 10px rgba(0,0,0,0.12)',
@@ -149,9 +157,9 @@ export default function WinCard({ show, winner, word, mode, onExited }) {
           />
           <div>
             <span style={{ fontSize: '0.75rem', color: '#9ca3af', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Pemenang
+              {word.includes(',') ? 'Penebak Terakhir' : 'Pemenang'}
             </span>
-            <h3 style={{ fontSize: '1.6rem', fontWeight: '800', color: '#1f2937', marginTop: '0.05rem', maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#1f2937', marginTop: '0.05rem', maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {winner.nickname}
             </h3>
           </div>
