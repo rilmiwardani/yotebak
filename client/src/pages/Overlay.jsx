@@ -58,7 +58,7 @@ export default function Overlay() {
 
   // Game state (Wordle & Anagram & Dual Mode & 2 Separate Leaderboards)
   const [gameState, setGameState] = useState({
-    mode: 'wordle', // 'wordle' | 'anagram' | 'dual'
+    mode: 'dual', // 'wordle' | 'anagram' | 'dual'
     // Wordle state
     targetWord: 'buku',
     guesses: [],
@@ -71,7 +71,7 @@ export default function Overlay() {
     anagramStatus: 'playing', // 'playing' | 'won'
     anagramWinner: null,
     anagramRows: 3,
-    // Two Distinct Leaderboards
+    // Two Separate Leaderboards
     wordleLeaderboard: loadWordleLeaderboard(),
     anagramLeaderboard: loadAnagramLeaderboard(),
     maxLeaderboardRows: loadMaxLeaderboardRows(),
@@ -97,9 +97,10 @@ export default function Overlay() {
   const validWordsSetRef = useRef(new Set());
   const playedWordsRef = useRef(new Set());
 
-  // WebRTC refs
+  // WebRTC refs & Local Broadcast Channel for seamless multi-overlay sync
   const peerRef = useRef(null);
   const connectionsRef = useRef([]);
+  const broadcastChannelRef = useRef(null);
   const [roomCode, setRoomCode] = useState('');
   const [viewType, setViewType] = useState('all'); // 'all' | 'wordle' | 'anagram' | 'leaderboard' | 'leaderboard-wordle' | 'leaderboard-anagram'
 
@@ -197,50 +198,40 @@ export default function Overlay() {
     });
   };
 
-  // Robust auto-restart for single and dual modes (immune to background tab throttling)
+  // Independent auto-restart: Wordle and Anagram restart strictly isolated without touching each other!
   useEffect(() => {
     // Wordle end tracking
-    if (gameState.mode === 'wordle' || gameState.mode === 'dual') {
-      if (gameState.wordleStatus === 'won') {
-        if (!wordleEndedAtRef.current) wordleEndedAtRef.current = Date.now();
-      } else {
-        wordleEndedAtRef.current = null;
-      }
+    if (gameState.wordleStatus === 'won') {
+      if (!wordleEndedAtRef.current) wordleEndedAtRef.current = Date.now();
+    } else {
+      wordleEndedAtRef.current = null;
     }
 
     // Anagram end tracking
-    if (gameState.mode === 'anagram' || gameState.mode === 'dual') {
-      if (gameState.anagramStatus === 'won') {
-        if (!anagramEndedAtRef.current) anagramEndedAtRef.current = Date.now();
-      } else {
-        anagramEndedAtRef.current = null;
-      }
+    if (gameState.anagramStatus === 'won') {
+      if (!anagramEndedAtRef.current) anagramEndedAtRef.current = Date.now();
+    } else {
+      anagramEndedAtRef.current = null;
     }
 
     const checkRestart = setInterval(() => {
       const now = Date.now();
 
+      // Wordle restarts independently
       if (wordleEndedAtRef.current && (now - wordleEndedAtRef.current >= RESTART_DELAY_MS)) {
         wordleEndedAtRef.current = null;
-        if (gameStateRef.current.mode === 'dual') {
-          restartWordlePart();
-        } else if (gameStateRef.current.mode === 'wordle') {
-          initGame('wordle');
-        }
+        restartWordlePart();
       }
 
+      // Anagram restarts independently
       if (anagramEndedAtRef.current && (now - anagramEndedAtRef.current >= RESTART_DELAY_MS)) {
         anagramEndedAtRef.current = null;
-        if (gameStateRef.current.mode === 'dual') {
-          restartAnagramPart();
-        } else if (gameStateRef.current.mode === 'anagram') {
-          initGame('anagram');
-        }
+        restartAnagramPart();
       }
     }, 1000);
 
     return () => clearInterval(checkRestart);
-  }, [gameState.mode, gameState.wordleStatus, gameState.anagramStatus]);
+  }, [gameState.wordleStatus, gameState.anagramStatus]);
 
   // Persistence helpers for played words pool
   const loadPlayedWords = () => {
@@ -262,9 +253,11 @@ export default function Overlay() {
     } catch (_) {}
   };
 
-  // 1. Fetch word list files
+  // 1. Fetch word list files and synchronize initial game state
   useEffect(() => {
     document.body.classList.add('bg-magenta');
+    const query = new URLSearchParams(window.location.search);
+    const room = query.get('room') || 'default_room';
 
     const loadWords = async () => {
       try {
@@ -288,8 +281,23 @@ export default function Overlay() {
         playedWordsRef.current = loadPlayedWords();
         console.log(`Loaded ${targets.length} target words (${playedWordsRef.current.size} previously played) and ${validSet.size} valid words.`);
         
-        // Start first game
-        initGame('wordle', null, targets);
+        // Synchronize with existing active game state if one already exists in localStorage
+        let existingState = null;
+        try {
+          const saved = localStorage.getItem(`yotebak_active_game_${room}`);
+          if (saved) {
+            existingState = JSON.parse(saved);
+          }
+        } catch (_) {}
+
+        if (existingState && existingState.targetWord && existingState.anagramWords && existingState.anagramWords.length > 0) {
+          console.log("Synchronized with active room game state:", existingState.targetWord);
+          gameStateRef.current = existingState;
+          setGameState(existingState);
+        } else {
+          // Initialize fresh dual game
+          initGame('dual', null, targets);
+        }
       } catch (err) {
         console.error("Failed to load word files:", err);
       }
@@ -302,13 +310,27 @@ export default function Overlay() {
     };
   }, []);
 
-  // 2. Initialize PeerJS (Host)
+  // 2. Initialize PeerJS (Host) and BroadcastChannel
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const room = query.get('room') || 'default_room';
     const view = (query.get('view') || query.get('type') || 'all').toLowerCase();
     setRoomCode(room);
     setViewType(view);
+
+    // Setup local BroadcastChannel for 0ms multi-overlay sync on the same machine
+    try {
+      const channel = new BroadcastChannel(`yotebak_sync_${room}`);
+      broadcastChannelRef.current = channel;
+
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'gameState') {
+          const newState = event.data.state;
+          gameStateRef.current = newState;
+          setGameState(newState);
+        }
+      };
+    } catch (_) {}
 
     let viewSuffix = '';
     if (view === 'wordle') viewSuffix = '-wordle';
@@ -394,6 +416,9 @@ export default function Overlay() {
     });
 
     return () => {
+      if (broadcastChannelRef.current) {
+        try { broadcastChannelRef.current.close(); } catch (_) {}
+      }
       peer.destroy();
     };
   }, []);
@@ -407,8 +432,21 @@ export default function Overlay() {
     });
   };
 
-  // Broadcast state changes to all connected Admin Peers
+  // Broadcast state changes to all connected Admin Peers AND other local Overlay instances
   const broadcastState = (state) => {
+    const query = new URLSearchParams(window.location.search);
+    const room = query.get('room') || 'default_room';
+
+    try {
+      localStorage.setItem(`yotebak_active_game_${room}`, JSON.stringify(state));
+    } catch (_) {}
+
+    if (broadcastChannelRef.current) {
+      try {
+        broadcastChannelRef.current.postMessage({ type: 'gameState', state });
+      } catch (_) {}
+    }
+
     connectionsRef.current.forEach((conn) => {
       if (conn.open) {
         conn.send({ type: 'gameState', state });
@@ -494,10 +532,10 @@ export default function Overlay() {
       mode: mode,
       // Wordle fields
       targetWord: wordleWord,
-      guesses: (mode === 'wordle' || mode === 'dual') ? [{
+      guesses: [{
         word: firstGuess,
         user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=4ca371&color=fff' }
-      }] : [],
+      }],
       wordleStatus: 'playing',
       wordleWinner: null,
       maxRows: oldMaxRows,
@@ -527,7 +565,7 @@ export default function Overlay() {
     broadcastState(newGameState);
   };
 
-  // Restart only Wordle section during Dual Mode
+  // Restart strictly only Wordle section - Anagram is 100% UNTOUCHED!
   const restartWordlePart = () => {
     const targets = targetWordsRef.current;
     const lastWordleWord = gameStateRef.current ? gameStateRef.current.targetWord : null;
@@ -553,7 +591,7 @@ export default function Overlay() {
     setWordleWinState({ show: false, winner: null, word: '' });
   };
 
-  // Restart only Anagram section during Dual Mode
+  // Restart strictly only Anagram section - Wordle is 100% UNTOUCHED!
   const restartAnagramPart = () => {
     const targets = targetWordsRef.current;
     const validRows = gameStateRef.current?.anagramRows || 3;
@@ -707,7 +745,7 @@ export default function Overlay() {
     let stateChanged = false;
 
     // 1. Process Anagram
-    if ((state.mode === 'anagram' || state.mode === 'dual') && (state.anagramStatus !== 'won')) {
+    if (state.anagramStatus !== 'won') {
       const anagramWords = state.anagramWords || [];
       let solvedWordIndex = -1;
 
@@ -752,7 +790,7 @@ export default function Overlay() {
     }
 
     // 2. Process Wordle
-    if ((state.mode === 'wordle' || state.mode === 'dual') && (state.wordleStatus !== 'won')) {
+    if (state.wordleStatus !== 'won') {
       const guessStr = extractGuess(chatText);
 
       if (guessStr) {
@@ -784,18 +822,6 @@ export default function Overlay() {
     }
 
     if (stateChanged) {
-      // Overall status update for backward compatibility
-      if (updatedState.mode === 'wordle') {
-        updatedState.status = updatedState.wordleStatus;
-        updatedState.winner = updatedState.wordleWinner;
-      } else if (updatedState.mode === 'anagram') {
-        updatedState.status = updatedState.anagramStatus;
-        updatedState.winner = updatedState.anagramWinner;
-      } else if (updatedState.mode === 'dual') {
-        updatedState.status = (updatedState.wordleStatus === 'won' && updatedState.anagramStatus === 'won') ? 'won' : 'playing';
-        updatedState.winner = updatedState.wordleWinner || updatedState.anagramWinner;
-      }
-
       gameStateRef.current = updatedState;
       setGameState(updatedState);
       broadcastState(updatedState);

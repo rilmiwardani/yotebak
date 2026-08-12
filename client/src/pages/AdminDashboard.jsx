@@ -6,6 +6,7 @@ export default function AdminDashboard() {
   const [roomCode, setRoomCode] = useState('');
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [connectedHosts, setConnectedHosts] = useState([]);
   const [gameState, setGameState] = useState(null);
   const [guessInput, setGuessInput] = useState('');
   const [copiedKey, setCopiedKey] = useState('');
@@ -34,6 +35,7 @@ export default function AdminDashboard() {
       peerRef.current = null;
     }
     connsRef.current = [];
+    setConnectedHosts([]);
 
     setConnecting(true);
     setRoomCode(targetRoom);
@@ -63,6 +65,7 @@ export default function AdminDashboard() {
           if (!connsRef.current.some(c => c.peer === hostId)) {
             connsRef.current.push(conn);
           }
+          setConnectedHosts(prev => [...new Set([...prev, hostId])]);
           setConnected(true);
           setConnecting(false);
         });
@@ -80,6 +83,7 @@ export default function AdminDashboard() {
 
         conn.on('close', () => {
           connsRef.current = connsRef.current.filter(c => c.peer !== hostId);
+          setConnectedHosts(prev => prev.filter(id => id !== hostId));
           if (connsRef.current.length === 0) {
             setConnected(false);
           }
@@ -87,6 +91,7 @@ export default function AdminDashboard() {
 
         conn.on('error', () => {
           connsRef.current = connsRef.current.filter(c => c.peer !== hostId);
+          setConnectedHosts(prev => prev.filter(id => id !== hostId));
         });
       } catch (_) {}
     };
@@ -110,7 +115,6 @@ export default function AdminDashboard() {
 
     peer.on('error', (err) => {
       console.error('PeerJS Client error:', err);
-      // Don't kill whole dashboard immediately on single handshake error
     });
   };
 
@@ -119,6 +123,7 @@ export default function AdminDashboard() {
       try { c.close(); } catch (_) {}
     });
     connsRef.current = [];
+    setConnectedHosts([]);
 
     if (peerRef.current) {
       try { peerRef.current.destroy(); } catch (_) {}
@@ -225,8 +230,16 @@ export default function AdminDashboard() {
   const urlLeaderboardAnagram = currentRoom ? `${origin}/overlay?room=${currentRoom}&view=leaderboard-anagram` : '';
   const urlLeaderboardBoth = currentRoom ? `${origin}/overlay?room=${currentRoom}&view=leaderboard` : '';
 
+  // Helper: check if a specific overlay host is actively connected
+  const isHostActive = (suffix) => {
+    const fullId = `overlay-game-${currentRoom}${suffix ? `-${suffix}` : ''}`;
+    return connectedHosts.includes(fullId);
+  };
+
+  const activeCount = connectedHosts.length;
+
   return (
-    <div style={{ padding: '2rem', maxWidth: '920px', margin: '0 auto' }}>
+    <div style={{ padding: '2rem', maxWidth: '940px', margin: '0 auto' }}>
       <h1 style={{ marginBottom: '1.5rem', fontSize: '1.9rem', fontWeight: 'bold' }}>🎮 Dashboard TikFinity Wordle & Anagram (Serverless P2P)</h1>
       
       {/* Connection Panel */}
@@ -297,9 +310,22 @@ export default function AdminDashboard() {
           {/* Opsi URL Browser Source Terpisah / Gabungan */}
           {currentRoom && (
             <div style={{ marginTop: '1.2rem', padding: '1.1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <strong style={{ fontSize: '1rem', display: 'block', marginBottom: '0.85rem', color: '#1e293b' }}>
-                🔗 Pilih URL Browser Source untuk OBS (Bisa Dipisah Sesuai Keinginan):
-              </strong>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                <strong style={{ fontSize: '1rem', color: '#1e293b' }}>
+                  🔗 Daftar URL Browser Source untuk OBS:
+                </strong>
+                <span style={{ 
+                  fontSize: '0.8rem', 
+                  fontWeight: '800', 
+                  padding: '0.2rem 0.6rem', 
+                  borderRadius: '999px',
+                  backgroundColor: activeCount > 0 ? '#dcfce7' : '#f1f5f9',
+                  color: activeCount > 0 ? '#15803d' : '#64748b',
+                  border: activeCount > 0 ? '1px solid #86efac' : '1px solid #e2e8f0'
+                }}>
+                  {activeCount > 0 ? `🟢 ${activeCount} Overlay Terbuka di OBS` : '⚪ Belum ada Overlay di OBS'}
+                </span>
+              </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                 
@@ -307,6 +333,19 @@ export default function AdminDashboard() {
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: '700', minWidth: '220px', color: '#15803d' }}>
                     1. 🟩 Game Wordle Saja:
+                  </span>
+                  <span style={{ 
+                    fontSize: '0.72rem', 
+                    fontWeight: '800', 
+                    padding: '0.2rem 0.5rem', 
+                    borderRadius: '4px',
+                    minWidth: '100px',
+                    textAlign: 'center',
+                    backgroundColor: isHostActive('wordle') ? '#dcfce7' : '#f1f5f9',
+                    color: isHostActive('wordle') ? '#15803d' : '#94a3b8',
+                    border: isHostActive('wordle') ? '1px solid #86efac' : '1px solid #e2e8f0'
+                  }}>
+                    {isHostActive('wordle') ? '🟢 Aktif di OBS' : '⚪ Belum Aktif'}
                   </span>
                   <input 
                     type="text" 
@@ -327,6 +366,19 @@ export default function AdminDashboard() {
                   <span style={{ fontSize: '0.85rem', fontWeight: '700', minWidth: '220px', color: '#1e40af' }}>
                     2. 🟦 Game Anagram Saja:
                   </span>
+                  <span style={{ 
+                    fontSize: '0.72rem', 
+                    fontWeight: '800', 
+                    padding: '0.2rem 0.5rem', 
+                    borderRadius: '4px',
+                    minWidth: '100px',
+                    textAlign: 'center',
+                    backgroundColor: isHostActive('anagram') ? '#dbeafe' : '#f1f5f9',
+                    color: isHostActive('anagram') ? '#1d4ed8' : '#94a3b8',
+                    border: isHostActive('anagram') ? '1px solid #93c5fd' : '1px solid #e2e8f0'
+                  }}>
+                    {isHostActive('anagram') ? '🟢 Aktif di OBS' : '⚪ Belum Aktif'}
+                  </span>
                   <input 
                     type="text" 
                     readOnly 
@@ -345,6 +397,19 @@ export default function AdminDashboard() {
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: '700', minWidth: '220px', color: '#166534' }}>
                     3. 🏆 Leaderboard Wordle Saja:
+                  </span>
+                  <span style={{ 
+                    fontSize: '0.72rem', 
+                    fontWeight: '800', 
+                    padding: '0.2rem 0.5rem', 
+                    borderRadius: '4px',
+                    minWidth: '100px',
+                    textAlign: 'center',
+                    backgroundColor: isHostActive('leaderboard-wordle') ? '#dcfce7' : '#f1f5f9',
+                    color: isHostActive('leaderboard-wordle') ? '#15803d' : '#94a3b8',
+                    border: isHostActive('leaderboard-wordle') ? '1px solid #86efac' : '1px solid #e2e8f0'
+                  }}>
+                    {isHostActive('leaderboard-wordle') ? '🟢 Aktif di OBS' : '⚪ Belum Aktif'}
                   </span>
                   <input 
                     type="text" 
@@ -365,6 +430,19 @@ export default function AdminDashboard() {
                   <span style={{ fontSize: '0.85rem', fontWeight: '700', minWidth: '220px', color: '#1d4ed8' }}>
                     4. 🏆 Leaderboard Anagram Saja:
                   </span>
+                  <span style={{ 
+                    fontSize: '0.72rem', 
+                    fontWeight: '800', 
+                    padding: '0.2rem 0.5rem', 
+                    borderRadius: '4px',
+                    minWidth: '100px',
+                    textAlign: 'center',
+                    backgroundColor: isHostActive('leaderboard-anagram') ? '#dbeafe' : '#f1f5f9',
+                    color: isHostActive('leaderboard-anagram') ? '#1d4ed8' : '#94a3b8',
+                    border: isHostActive('leaderboard-anagram') ? '1px solid #93c5fd' : '1px solid #e2e8f0'
+                  }}>
+                    {isHostActive('leaderboard-anagram') ? '🟢 Aktif di OBS' : '⚪ Belum Aktif'}
+                  </span>
                   <input 
                     type="text" 
                     readOnly 
@@ -383,6 +461,19 @@ export default function AdminDashboard() {
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: '700', minWidth: '220px', color: '#b45309' }}>
                     5. 🏆 Kedua Leaderboard (Berdampingan):
+                  </span>
+                  <span style={{ 
+                    fontSize: '0.72rem', 
+                    fontWeight: '800', 
+                    padding: '0.2rem 0.5rem', 
+                    borderRadius: '4px',
+                    minWidth: '100px',
+                    textAlign: 'center',
+                    backgroundColor: isHostActive('leaderboard') ? '#fef3c7' : '#f1f5f9',
+                    color: isHostActive('leaderboard') ? '#b45309' : '#94a3b8',
+                    border: isHostActive('leaderboard') ? '1px solid #fde68a' : '1px solid #e2e8f0'
+                  }}>
+                    {isHostActive('leaderboard') ? '🟢 Aktif di OBS' : '⚪ Belum Aktif'}
                   </span>
                   <input 
                     type="text" 
@@ -403,6 +494,19 @@ export default function AdminDashboard() {
                   <span style={{ fontSize: '0.85rem', fontWeight: '700', minWidth: '220px', color: '#475569' }}>
                     6. 🎮 Game Gabungan (Wordle + Anagram):
                   </span>
+                  <span style={{ 
+                    fontSize: '0.72rem', 
+                    fontWeight: '800', 
+                    padding: '0.2rem 0.5rem', 
+                    borderRadius: '4px',
+                    minWidth: '100px',
+                    textAlign: 'center',
+                    backgroundColor: isHostActive('') ? '#f1f5f9' : '#f1f5f9',
+                    color: isHostActive('') ? '#334155' : '#94a3b8',
+                    border: isHostActive('') ? '1px solid #cbd5e1' : '1px solid #e2e8f0'
+                  }}>
+                    {isHostActive('') ? '🟢 Aktif di OBS' : '⚪ Belum Aktif'}
+                  </span>
                   <input 
                     type="text" 
                     readOnly 
@@ -420,7 +524,7 @@ export default function AdminDashboard() {
               </div>
 
               <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.75rem', marginBottom: 0 }}>
-                💡 <em>Tip: Gunakan URL No. 1 & 2 untuk game, dan URL No. 3 & 4 untuk Leaderboard masing-masing agar tata letak layar live stream Anda bisa diatur dengan sangat leluasa di OBS!</em>
+                💡 <em>Badge hijau 🟢 menunjukkan Browser Source yang sedang aktif dibuka di OBS Anda.</em>
               </p>
             </div>
           )}
@@ -428,7 +532,7 @@ export default function AdminDashboard() {
           {connected && (
             <div style={{ marginTop: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
               <p style={{ color: 'green', fontWeight: 'bold', fontSize: '0.9rem' }}>
-                🟢 Terhubung ke OBS (Kamar: {roomCode}) - {connsRef.current.length} Overlay Aktif
+                🟢 Terhubung ke OBS (Kamar: {roomCode}) - {activeCount} Overlay Terdeteksi
               </p>
               <p style={{ color: tikFinityConnected ? '#10b981' : '#ef4444', fontWeight: 'bold', fontSize: '0.9rem' }}>
                 {tikFinityConnected ? '🟢 TikFinity Terhubung' : '🔴 TikFinity Tidak Terhubung'}
@@ -588,80 +692,76 @@ export default function AdminDashboard() {
               </div>
               
               {/* WORDLE STATUS BLOCK */}
-              {(gameState.mode === 'wordle' || gameState.mode === 'dual') && (
-                <div style={{ padding: '0.8rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', marginBottom: '0.8rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                    <strong style={{ color: '#166534' }}>🟩 Wordle:</strong>
-                    <span style={{ 
-                      fontSize: '0.8rem', 
-                      fontWeight: 'bold', 
-                      color: gameState.wordleStatus === 'won' ? '#16a34a' : '#2563eb' 
-                    }}>
-                      {gameState.wordleStatus === 'won' ? '✅ Selesai (Won)' : '🎮 Sedang Berlangsung'}
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '0.9rem' }}>Kata Target: <span style={{ textTransform: 'uppercase', fontWeight: 'bold', color: '#15803d' }}>{gameState.targetWord}</span></p>
-                  <p style={{ fontSize: '0.9rem' }}>Tebakan Masuk: <strong>{gameState.guesses?.length || 0}</strong></p>
-                  {gameState.wordleWinner && (
-                    <p style={{ fontSize: '0.85rem', color: '#166534', marginTop: '0.2rem' }}>
-                      Pemenang: <strong>{gameState.wordleWinner.nickname}</strong>
-                    </p>
-                  )}
+              <div style={{ padding: '0.8rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', marginBottom: '0.8rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <strong style={{ color: '#166534' }}>🟩 Wordle:</strong>
+                  <span style={{ 
+                    fontSize: '0.8rem', 
+                    fontWeight: 'bold', 
+                    color: gameState.wordleStatus === 'won' ? '#16a34a' : '#2563eb' 
+                  }}>
+                    {gameState.wordleStatus === 'won' ? '✅ Selesai (Won)' : '🎮 Sedang Berlangsung'}
+                  </span>
                 </div>
-              )}
+                <p style={{ fontSize: '0.9rem' }}>Kata Target: <span style={{ textTransform: 'uppercase', fontWeight: 'bold', color: '#15803d' }}>{gameState.targetWord}</span></p>
+                <p style={{ fontSize: '0.9rem' }}>Tebakan Masuk: <strong>{gameState.guesses?.length || 0}</strong></p>
+                {gameState.wordleWinner && (
+                  <p style={{ fontSize: '0.85rem', color: '#166534', marginTop: '0.2rem' }}>
+                    Pemenang: <strong>{gameState.wordleWinner.nickname}</strong>
+                  </p>
+                )}
+              </div>
 
               {/* ANAGRAM STATUS BLOCK */}
-              {(gameState.mode === 'anagram' || gameState.mode === 'dual') && (
-                <div style={{ padding: '0.8rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', marginBottom: '0.8rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                    <strong style={{ color: '#1e40af' }}>🟦 Anagram:</strong>
-                    <span style={{ 
-                      fontSize: '0.8rem', 
-                      fontWeight: 'bold', 
-                      color: gameState.anagramStatus === 'won' ? '#16a34a' : '#2563eb' 
-                    }}>
-                      {gameState.anagramStatus === 'won' 
-                        ? '✅ Semua Tertebak' 
-                        : `🎮 ${gameState.anagramWords?.filter(w => w.solved).length || 0} / ${gameState.anagramWords?.length || 1} Tertebak`}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.4rem' }}>
-                    {(gameState.anagramWords || []).map((item, idx) => (
-                      <div key={idx} style={{ 
-                        padding: '0.4rem 0.6rem', 
-                        borderRadius: '4px', 
-                        background: item.solved ? '#e6f4ea' : 'white', 
-                        border: item.solved ? '1px solid #c3e6cb' : '1px solid #e5e7eb',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        fontSize: '0.85rem'
-                      }}>
-                        <div>
-                          <span style={{ fontWeight: 'bold', color: '#6b7280', marginRight: '0.3rem' }}>#{idx + 1}</span>
-                          <span style={{ textTransform: 'uppercase', fontWeight: 'bold', color: item.solved ? '#2b8a3e' : '#1f2937' }}>
-                            {item.targetWord}
-                          </span>
-                          <span style={{ marginLeft: '0.3rem', fontSize: '0.75rem', color: '#6b7280' }}>
-                            (Acak: <strong style={{ color: '#2563eb', textTransform: 'uppercase' }}>{item.scrambledWord}</strong>)
-                          </span>
-                        </div>
-                        <div>
-                          {item.solved ? (
-                            <span style={{ fontSize: '0.75rem', color: '#2b8a3e', fontWeight: 'bold' }}>
-                              ✅ {item.winner?.nickname || 'Tertebak'}
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 'bold' }}>
-                              ⏳ Belum
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              <div style={{ padding: '0.8rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', marginBottom: '0.8rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <strong style={{ color: '#1e40af' }}>🟦 Anagram:</strong>
+                  <span style={{ 
+                    fontSize: '0.8rem', 
+                    fontWeight: 'bold', 
+                    color: gameState.anagramStatus === 'won' ? '#16a34a' : '#2563eb' 
+                  }}>
+                    {gameState.anagramStatus === 'won' 
+                      ? '✅ Semua Tertebak' 
+                      : `🎮 ${gameState.anagramWords?.filter(w => w.solved).length || 0} / ${gameState.anagramWords?.length || 1} Tertebak`}
+                  </span>
                 </div>
-              )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.4rem' }}>
+                  {(gameState.anagramWords || []).map((item, idx) => (
+                    <div key={idx} style={{ 
+                      padding: '0.4rem 0.6rem', 
+                      borderRadius: '4px', 
+                      background: item.solved ? '#e6f4ea' : 'white', 
+                      border: item.solved ? '1px solid #c3e6cb' : '1px solid #e5e7eb',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: '0.85rem'
+                    }}>
+                      <div>
+                        <span style={{ fontWeight: 'bold', color: '#6b7280', marginRight: '0.3rem' }}>#{idx + 1}</span>
+                        <span style={{ textTransform: 'uppercase', fontWeight: 'bold', color: item.solved ? '#2b8a3e' : '#1f2937' }}>
+                          {item.targetWord}
+                        </span>
+                        <span style={{ marginLeft: '0.3rem', fontSize: '0.75rem', color: '#6b7280' }}>
+                          (Acak: <strong style={{ color: '#2563eb', textTransform: 'uppercase' }}>{item.scrambledWord}</strong>)
+                        </span>
+                      </div>
+                      <div>
+                        {item.solved ? (
+                          <span style={{ fontSize: '0.75rem', color: '#2b8a3e', fontWeight: 'bold' }}>
+                            ✅ {item.winner?.nickname || 'Tertebak'}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 'bold' }}>
+                            ⏳ Belum
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* TWO SEPARATE LIVE LEADERBOARD PREVIEWS */}
               <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '0.8rem' }}>
