@@ -7,10 +7,10 @@ import WinCard from '../components/WinCard';
 import TimeoutCard from '../components/TimeoutCard';
 
 export default function Overlay() {
-  // Persistence helpers for Leaderboard
-  const loadLeaderboard = () => {
+  // Persistence helpers for Wordle & Anagram Leaderboards
+  const loadWordleLeaderboard = () => {
     try {
-      const saved = localStorage.getItem('yotebak_leaderboard');
+      const saved = localStorage.getItem('yotebak_leaderboard_wordle');
       if (saved) {
         const arr = JSON.parse(saved);
         if (Array.isArray(arr)) return arr;
@@ -19,9 +19,26 @@ export default function Overlay() {
     return [];
   };
 
-  const saveLeaderboard = (data) => {
+  const saveWordleLeaderboard = (data) => {
     try {
-      localStorage.setItem('yotebak_leaderboard', JSON.stringify(data));
+      localStorage.setItem('yotebak_leaderboard_wordle', JSON.stringify(data));
+    } catch (_) {}
+  };
+
+  const loadAnagramLeaderboard = () => {
+    try {
+      const saved = localStorage.getItem('yotebak_leaderboard_anagram');
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr)) return arr;
+      }
+    } catch (_) {}
+    return [];
+  };
+
+  const saveAnagramLeaderboard = (data) => {
+    try {
+      localStorage.setItem('yotebak_leaderboard_anagram', JSON.stringify(data));
     } catch (_) {}
   };
 
@@ -39,7 +56,7 @@ export default function Overlay() {
     } catch (_) {}
   };
 
-  // Game state (Wordle & Anagram & Dual Mode & Leaderboard)
+  // Game state (Wordle & Anagram & Dual Mode & 2 Separate Leaderboards)
   const [gameState, setGameState] = useState({
     mode: 'wordle', // 'wordle' | 'anagram' | 'dual'
     // Wordle state
@@ -54,8 +71,9 @@ export default function Overlay() {
     anagramStatus: 'playing', // 'playing' | 'won'
     anagramWinner: null,
     anagramRows: 3,
-    // Leaderboard state
-    leaderboard: loadLeaderboard(),
+    // Two Distinct Leaderboards
+    wordleLeaderboard: loadWordleLeaderboard(),
+    anagramLeaderboard: loadAnagramLeaderboard(),
     maxLeaderboardRows: loadMaxLeaderboardRows(),
     // Status fallback
     status: 'playing',
@@ -83,19 +101,51 @@ export default function Overlay() {
   const peerRef = useRef(null);
   const connectionsRef = useRef([]);
   const [roomCode, setRoomCode] = useState('');
-  const [viewType, setViewType] = useState('all'); // 'all' | 'wordle' | 'anagram' | 'leaderboard'
+  const [viewType, setViewType] = useState('all'); // 'all' | 'wordle' | 'anagram' | 'leaderboard' | 'leaderboard-wordle' | 'leaderboard-anagram'
 
   // Keep refs of gameState to avoid closure stale state
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
 
-  // Record win to leaderboard helper
-  const recordWin = (user, currentState) => {
+  // Record win helper for Wordle
+  const recordWordleWin = (user, currentState) => {
     if (!user || !user.nickname || user.nickname === 'Host' || user.nickname === 'Last Word' || user.nickname === 'Kata Lalu') {
-      return currentState.leaderboard || [];
+      return currentState.wordleLeaderboard || [];
     }
 
-    const currentList = currentState.leaderboard || loadLeaderboard();
+    const currentList = currentState.wordleLeaderboard || loadWordleLeaderboard();
+    const list = [...currentList];
+    const cleanNick = user.nickname.trim();
+    const existingIdx = list.findIndex(p => (p.nickname || '').toLowerCase() === cleanNick.toLowerCase());
+
+    if (existingIdx !== -1) {
+      list[existingIdx] = {
+        ...list[existingIdx],
+        points: (list[existingIdx].points || 0) + 1,
+        profilePic: user.profilePic || list[existingIdx].profilePic,
+        lastWinAt: Date.now()
+      };
+    } else {
+      list.push({
+        nickname: cleanNick,
+        profilePic: user.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanNick)}&background=10b981&color=fff`,
+        points: 1,
+        lastWinAt: Date.now()
+      });
+    }
+
+    list.sort((a, b) => (b.points - a.points) || (b.lastWinAt - a.lastWinAt));
+    saveWordleLeaderboard(list);
+    return list;
+  };
+
+  // Record win helper for Anagram
+  const recordAnagramWin = (user, currentState) => {
+    if (!user || !user.nickname || user.nickname === 'Host' || user.nickname === 'Last Word' || user.nickname === 'Kata Lalu') {
+      return currentState.anagramLeaderboard || [];
+    }
+
+    const currentList = currentState.anagramLeaderboard || loadAnagramLeaderboard();
     const list = [...currentList];
     const cleanNick = user.nickname.trim();
     const existingIdx = list.findIndex(p => (p.nickname || '').toLowerCase() === cleanNick.toLowerCase());
@@ -116,17 +166,31 @@ export default function Overlay() {
       });
     }
 
-    // Sort descending by points, then by latest win time
     list.sort((a, b) => (b.points - a.points) || (b.lastWinAt - a.lastWinAt));
-    saveLeaderboard(list);
+    saveAnagramLeaderboard(list);
     return list;
   };
 
   // Reset leaderboard helper
-  const handleResetLeaderboard = () => {
-    saveLeaderboard([]);
+  const handleResetLeaderboard = (target = 'all') => {
+    let newWordle = gameStateRef.current?.wordleLeaderboard || [];
+    let newAnagram = gameStateRef.current?.anagramLeaderboard || [];
+
+    if (target === 'wordle' || target === 'all') {
+      saveWordleLeaderboard([]);
+      newWordle = [];
+    }
+    if (target === 'anagram' || target === 'all') {
+      saveAnagramLeaderboard([]);
+      newAnagram = [];
+    }
+
     setGameState(prev => {
-      const updated = { ...prev, leaderboard: [] };
+      const updated = { 
+        ...prev, 
+        wordleLeaderboard: newWordle, 
+        anagramLeaderboard: newAnagram 
+      };
       gameStateRef.current = updated;
       broadcastState(updated);
       return updated;
@@ -246,7 +310,13 @@ export default function Overlay() {
     setRoomCode(room);
     setViewType(view);
 
-    const viewSuffix = view === 'wordle' ? '-wordle' : (view === 'anagram' ? '-anagram' : (view === 'leaderboard' ? '-leaderboard' : ''));
+    let viewSuffix = '';
+    if (view === 'wordle') viewSuffix = '-wordle';
+    else if (view === 'anagram') viewSuffix = '-anagram';
+    else if (view === 'leaderboard-wordle' || view === 'leaderboard_wordle') viewSuffix = '-leaderboard-wordle';
+    else if (view === 'leaderboard-anagram' || view === 'leaderboard_anagram') viewSuffix = '-leaderboard-anagram';
+    else if (view === 'leaderboard' || view === 'leaderboards') viewSuffix = '-leaderboard';
+
     const peerId = `overlay-game-${room}${viewSuffix}`;
     const peer = new Peer(peerId);
     peerRef.current = peer;
@@ -289,7 +359,7 @@ export default function Overlay() {
             return newState;
           });
         } else if (data.type === 'resetLeaderboard') {
-          handleResetLeaderboard();
+          handleResetLeaderboard(data.target || 'all');
         } else if (data.type === 'updateLeaderboardLimit') {
           const limit = Math.min(Math.max(Number(data.limit) || 10, 1), 20);
           saveMaxLeaderboardRows(limit);
@@ -437,8 +507,9 @@ export default function Overlay() {
       anagramStatus: 'playing',
       anagramWinner: null,
       anagramRows: validAnagramRows,
-      // Leaderboard fields
-      leaderboard: gameStateRef.current?.leaderboard || loadLeaderboard(),
+      // Two Separate Leaderboards
+      wordleLeaderboard: gameStateRef.current?.wordleLeaderboard || loadWordleLeaderboard(),
+      anagramLeaderboard: gameStateRef.current?.anagramLeaderboard || loadAnagramLeaderboard(),
       maxLeaderboardRows: gameStateRef.current?.maxLeaderboardRows || loadMaxLeaderboardRows(),
       // Pool tracking fields
       poolPlayed: playedWordsRef.current.size,
@@ -671,15 +742,15 @@ export default function Overlay() {
         const allSolved = updatedAnagramWords.every(w => w.solved);
         const newAnagramStatus = allSolved ? 'won' : 'playing';
 
-        // Add win points to Leaderboard
-        const updatedLeaderboard = recordWin(user, updatedState);
+        // Add win points to Anagram Leaderboard
+        const updatedAnagramLeaderboard = recordAnagramWin(user, updatedState);
 
         updatedState = {
           ...updatedState,
           anagramWords: updatedAnagramWords,
           anagramStatus: newAnagramStatus,
           anagramWinner: allSolved ? user : updatedState.anagramWinner,
-          leaderboard: updatedLeaderboard,
+          anagramLeaderboard: updatedAnagramLeaderboard,
         };
         stateChanged = true;
 
@@ -703,9 +774,9 @@ export default function Overlay() {
           newWordleStatus = 'won';
           wordleWinner = user;
 
-          // Add win points to Leaderboard
-          const updatedLeaderboard = recordWin(user, updatedState);
-          updatedState.leaderboard = updatedLeaderboard;
+          // Add win points to Wordle Leaderboard
+          const updatedWordleLeaderboard = recordWordleWin(user, updatedState);
+          updatedState.wordleLeaderboard = updatedWordleLeaderboard;
         }
 
         updatedState = {
@@ -741,9 +812,13 @@ export default function Overlay() {
     }
   };
 
-  const showWordle = viewType === 'wordle' || (viewType === 'all' && (gameState.mode === 'wordle' || gameState.mode === 'dual'));
-  const showAnagram = viewType === 'anagram' || (viewType === 'all' && (gameState.mode === 'anagram' || gameState.mode === 'dual'));
-  const showLeaderboard = viewType === 'leaderboard' || viewType === 'all';
+  // View Routing logic
+  const isViewAll = viewType === 'all';
+  const showWordle = viewType === 'wordle' || (isViewAll && (gameState.mode === 'wordle' || gameState.mode === 'dual'));
+  const showAnagram = viewType === 'anagram' || (isViewAll && (gameState.mode === 'anagram' || gameState.mode === 'dual'));
+  
+  const showWordleLeaderboard = viewType === 'leaderboard-wordle' || viewType === 'leaderboard_wordle' || viewType === 'leaderboard' || viewType === 'leaderboards';
+  const showAnagramLeaderboard = viewType === 'leaderboard-anagram' || viewType === 'leaderboard_anagram' || viewType === 'leaderboard' || viewType === 'leaderboards';
 
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', padding: '1.5rem', overflow: 'hidden' }}>
@@ -794,10 +869,17 @@ export default function Overlay() {
           </div>
         )}
 
-        {/* LEADERBOARD BOARD (Bisa dipisah atau disatukan) */}
-        {showLeaderboard && (
+        {/* WORDLE LEADERBOARD */}
+        {showWordleLeaderboard && (
           <div style={{ position: 'relative', width: 'fit-content' }}>
-            <LeaderboardBoard gameState={gameState} />
+            <LeaderboardBoard gameState={gameState} type="wordle" />
+          </div>
+        )}
+
+        {/* ANAGRAM LEADERBOARD */}
+        {showAnagramLeaderboard && (
+          <div style={{ position: 'relative', width: 'fit-content' }}>
+            <LeaderboardBoard gameState={gameState} type="anagram" />
           </div>
         )}
 

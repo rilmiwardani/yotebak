@@ -43,7 +43,9 @@ export default function AdminDashboard() {
         `overlay-game-${targetRoom}`,
         `overlay-game-${targetRoom}-wordle`,
         `overlay-game-${targetRoom}-anagram`,
-        `overlay-game-${targetRoom}-leaderboard`
+        `overlay-game-${targetRoom}-leaderboard`,
+        `overlay-game-${targetRoom}-leaderboard-wordle`,
+        `overlay-game-${targetRoom}-leaderboard-anagram`
       ];
 
       connsRef.current = [];
@@ -164,9 +166,10 @@ export default function AdminDashboard() {
     broadcastToOverlays({ type: 'updateLeaderboardLimit', limit: val });
   };
 
-  const handleResetLeaderboardConfirm = () => {
-    if (window.confirm('⚠️ Yakin ingin mereset semua data Leaderboard dan poin kemenangan pemain?')) {
-      broadcastToOverlays({ type: 'resetLeaderboard' });
+  const handleResetLeaderboardConfirm = (target = 'all') => {
+    const label = target === 'wordle' ? 'Leaderboard WORDLE' : (target === 'anagram' ? 'Leaderboard ANAGRAM' : 'SEMUA Leaderboard (Wordle & Anagram)');
+    if (window.confirm(`⚠️ Yakin ingin mereset data ${label}? Poin kemenangan pemain akan dihapus.`)) {
+      broadcastToOverlays({ type: 'resetLeaderboard', target });
     }
   };
 
@@ -205,13 +208,19 @@ export default function AdminDashboard() {
 
   const currentRoom = roomInput.trim();
   const origin = window.location.origin;
+  
+  // Game URLs
   const urlCombined = currentRoom ? `${origin}/overlay?room=${currentRoom}` : '';
   const urlWordle = currentRoom ? `${origin}/overlay?room=${currentRoom}&view=wordle` : '';
   const urlAnagram = currentRoom ? `${origin}/overlay?room=${currentRoom}&view=anagram` : '';
-  const urlLeaderboard = currentRoom ? `${origin}/overlay?room=${currentRoom}&view=leaderboard` : '';
+  
+  // Separate Leaderboard URLs
+  const urlLeaderboardWordle = currentRoom ? `${origin}/overlay?room=${currentRoom}&view=leaderboard-wordle` : '';
+  const urlLeaderboardAnagram = currentRoom ? `${origin}/overlay?room=${currentRoom}&view=leaderboard-anagram` : '';
+  const urlLeaderboardBoth = currentRoom ? `${origin}/overlay?room=${currentRoom}&view=leaderboard` : '';
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '880px', margin: '0 auto' }}>
+    <div style={{ padding: '2rem', maxWidth: '920px', margin: '0 auto' }}>
       <h1 style={{ marginBottom: '1.5rem', fontSize: '1.9rem', fontWeight: 'bold' }}>🎮 Dashboard TikFinity Wordle & Anagram (Serverless P2P)</h1>
       
       {/* Connection Panel */}
@@ -281,35 +290,17 @@ export default function AdminDashboard() {
 
           {/* Opsi URL Browser Source Terpisah / Gabungan */}
           {currentRoom && (
-            <div style={{ marginTop: '1.2rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <strong style={{ fontSize: '0.95rem', display: 'block', marginBottom: '0.75rem', color: '#1e293b' }}>
-                🔗 Pilih URL Browser Source untuk OBS:
+            <div style={{ marginTop: '1.2rem', padding: '1.1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <strong style={{ fontSize: '1rem', display: 'block', marginBottom: '0.85rem', color: '#1e293b' }}>
+                🔗 Pilih URL Browser Source untuk OBS (Bisa Dipisah Sesuai Keinginan):
               </strong>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                {/* 1. Gabungan */}
+                
+                {/* 1. Game Wordle Saja */}
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '180px', color: '#475569' }}>
-                    1. Semua Overlay (Gabungan):
-                  </span>
-                  <input 
-                    type="text" 
-                    readOnly 
-                    value={urlCombined} 
-                    style={{ padding: '0.4rem 0.6rem', flex: 1, borderRadius: '4px', border: '1px solid #ccc', background: '#fff', fontSize: '0.85rem' }} 
-                    onClick={(e) => e.target.select()}
-                  />
-                  <button 
-                    onClick={() => copySpecificUrl(urlCombined, 'combined')} 
-                    style={{ padding: '0.4rem 0.8rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                    {copiedKey === 'combined' ? 'Disalin! ✅' : 'Copy URL'}
-                  </button>
-                </div>
-
-                {/* 2. Khusus Wordle */}
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '180px', color: '#15803d' }}>
-                    2. Khusus Wordle Saja:
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700', minWidth: '220px', color: '#15803d' }}>
+                    1. 🟩 Game Wordle Saja:
                   </span>
                   <input 
                     type="text" 
@@ -325,10 +316,10 @@ export default function AdminDashboard() {
                   </button>
                 </div>
 
-                {/* 3. Khusus Anagram */}
+                {/* 2. Game Anagram Saja */}
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '180px', color: '#1e40af' }}>
-                    3. Khusus Anagram Saja:
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700', minWidth: '220px', color: '#1e40af' }}>
+                    2. 🟦 Game Anagram Saja:
                   </span>
                   <input 
                     type="text" 
@@ -344,28 +335,86 @@ export default function AdminDashboard() {
                   </button>
                 </div>
 
-                {/* 4. Khusus Leaderboard */}
+                {/* 3. Leaderboard Wordle Saja */}
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '600', minWidth: '180px', color: '#b45309' }}>
-                    4. 🏆 Khusus Leaderboard:
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700', minWidth: '220px', color: '#166534' }}>
+                    3. 🏆 Leaderboard Wordle Saja:
                   </span>
                   <input 
                     type="text" 
                     readOnly 
-                    value={urlLeaderboard} 
+                    value={urlLeaderboardWordle} 
+                    style={{ padding: '0.4rem 0.6rem', flex: 1, borderRadius: '4px', border: '1px solid #ccc', background: '#f0fdf4', fontSize: '0.85rem' }} 
+                    onClick={(e) => e.target.select()}
+                  />
+                  <button 
+                    onClick={() => copySpecificUrl(urlLeaderboardWordle, 'lb_wordle')} 
+                    style={{ padding: '0.4rem 0.8rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                    {copiedKey === 'lb_wordle' ? 'Disalin! ✅' : 'Copy URL'}
+                  </button>
+                </div>
+
+                {/* 4. Leaderboard Anagram Saja */}
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700', minWidth: '220px', color: '#1d4ed8' }}>
+                    4. 🏆 Leaderboard Anagram Saja:
+                  </span>
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={urlLeaderboardAnagram} 
+                    style={{ padding: '0.4rem 0.6rem', flex: 1, borderRadius: '4px', border: '1px solid #ccc', background: '#eff6ff', fontSize: '0.85rem' }} 
+                    onClick={(e) => e.target.select()}
+                  />
+                  <button 
+                    onClick={() => copySpecificUrl(urlLeaderboardAnagram, 'lb_anagram')} 
+                    style={{ padding: '0.4rem 0.8rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                    {copiedKey === 'lb_anagram' ? 'Disalin! ✅' : 'Copy URL'}
+                  </button>
+                </div>
+
+                {/* 5. Dua Leaderboard Berdampingan */}
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700', minWidth: '220px', color: '#b45309' }}>
+                    5. 🏆 Kedua Leaderboard (Berdampingan):
+                  </span>
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={urlLeaderboardBoth} 
                     style={{ padding: '0.4rem 0.6rem', flex: 1, borderRadius: '4px', border: '1px solid #ccc', background: '#fffbeb', fontSize: '0.85rem' }} 
                     onClick={(e) => e.target.select()}
                   />
                   <button 
-                    onClick={() => copySpecificUrl(urlLeaderboard, 'leaderboard')} 
+                    onClick={() => copySpecificUrl(urlLeaderboardBoth, 'lb_both')} 
                     style={{ padding: '0.4rem 0.8rem', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                    {copiedKey === 'leaderboard' ? 'Disalin! ✅' : 'Copy URL'}
+                    {copiedKey === 'lb_both' ? 'Disalin! ✅' : 'Copy URL'}
                   </button>
                 </div>
+
+                {/* 6. Game Gabungan */}
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700', minWidth: '220px', color: '#475569' }}>
+                    6. 🎮 Game Gabungan (Wordle + Anagram):
+                  </span>
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={urlCombined} 
+                    style={{ padding: '0.4rem 0.6rem', flex: 1, borderRadius: '4px', border: '1px solid #ccc', background: '#fff', fontSize: '0.85rem' }} 
+                    onClick={(e) => e.target.select()}
+                  />
+                  <button 
+                    onClick={() => copySpecificUrl(urlCombined, 'combined')} 
+                    style={{ padding: '0.4rem 0.8rem', background: '#64748b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                    {copiedKey === 'combined' ? 'Disalin! ✅' : 'Copy URL'}
+                  </button>
+                </div>
+
               </div>
 
-              <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.65rem', marginBottom: 0 }}>
-                💡 <em>Tip: Masukkan <strong>URL Wordle</strong>, <strong>URL Anagram</strong>, dan <strong>URL Leaderboard</strong> sebagai Browser Source terpisah di OBS agar Anda bisa bebas menggeser, memperbesar, dan menata layout masing-masing di layar stream!</em>
+              <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.75rem', marginBottom: 0 }}>
+                💡 <em>Tip: Gunakan URL No. 1 & 2 untuk game, dan URL No. 3 & 4 untuk Leaderboard masing-masing agar tata letak layar live stream Anda bisa diatur dengan sangat leluasa di OBS!</em>
               </p>
             </div>
           )}
@@ -468,24 +517,31 @@ export default function AdminDashboard() {
               <option value={20}>20 Teratas (Maksimal)</option>
             </select>
 
-            <button 
-              type="button"
-              onClick={handleResetLeaderboardConfirm}
-              style={{ 
-                marginTop: '0.8rem',
-                width: '100%',
-                padding: '0.6rem', 
-                background: '#ef4444', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '6px', 
-                cursor: 'pointer', 
-                fontWeight: 'bold', 
-                fontSize: '0.85rem'
-              }}
-            >
-              🔄 Reset Poin & Leaderboard
-            </button>
+            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.8rem', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <button 
+                  type="button"
+                  onClick={() => handleResetLeaderboardConfirm('wordle')}
+                  style={{ flex: 1, padding: '0.5rem', background: '#16a34a', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}
+                >
+                  🔄 Reset LB Wordle
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => handleResetLeaderboardConfirm('anagram')}
+                  style={{ flex: 1, padding: '0.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}
+                >
+                  🔄 Reset LB Anagram
+                </button>
+              </div>
+              <button 
+                type="button"
+                onClick={() => handleResetLeaderboardConfirm('all')}
+                style={{ width: '100%', padding: '0.5rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }}
+              >
+                ⚠️ Reset Semua Poin Leaderboard
+              </button>
+            </div>
           </div>
 
           <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1.2rem' }}>
@@ -601,43 +657,51 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* LIVE LEADERBOARD PREVIEW IN DASHBOARD */}
-              <div style={{ padding: '0.8rem', background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '8px', marginBottom: '0.8rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                  <strong style={{ color: '#b45309' }}>🏆 Top Pemenang (Leaderboard):</strong>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#d97706' }}>
-                    {gameState.leaderboard?.length || 0} Pemain Tercatat
-                  </span>
+              {/* TWO SEPARATE LIVE LEADERBOARD PREVIEWS */}
+              <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '0.8rem' }}>
+                {/* WORDLE LEADERBOARD PREVIEW */}
+                <div style={{ flex: 1, padding: '0.7rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                    <strong style={{ color: '#166534', fontSize: '0.82rem' }}>🟩 Top Wordle:</strong>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#15803d' }}>
+                      {gameState.wordleLeaderboard?.length || 0} Pemain
+                    </span>
+                  </div>
+                  {(gameState.wordleLeaderboard || []).length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', maxHeight: '130px', overflowY: 'auto' }}>
+                      {(gameState.wordleLeaderboard || []).slice(0, 5).map((p, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.75rem' }}>
+                          <span style={{ fontWeight: 'bold' }}>{idx === 0 ? '🥇' : `#${idx+1}`} {p.nickname}</span>
+                          <span style={{ color: '#15803d', fontWeight: 'bold' }}>{p.points} Pts</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '0.75rem', color: '#166534', margin: 0 }}>Belum ada pemenang.</p>
+                  )}
                 </div>
 
-                {(gameState.leaderboard || []).length > 0 ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '160px', overflowY: 'auto' }}>
-                    {(gameState.leaderboard || []).slice(0, gameState.maxLeaderboardRows || 10).map((player, idx) => (
-                      <div key={idx} style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'space-between',
-                        padding: '0.25rem 0.5rem',
-                        background: 'white',
-                        borderRadius: '4px',
-                        border: '1px solid #fde68a',
-                        fontSize: '0.8rem'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          <span style={{ fontWeight: 'bold', minWidth: '1.2rem' }}>
-                            {idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : `#${idx + 1}`))}
-                          </span>
-                          <span style={{ fontWeight: 'bold', color: '#1f2937' }}>{player.nickname}</span>
-                        </div>
-                        <span style={{ fontWeight: 'bold', color: '#d97706', background: '#fef3c7', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
-                          ⭐ {player.points} Pts
-                        </span>
-                      </div>
-                    ))}
+                {/* ANAGRAM LEADERBOARD PREVIEW */}
+                <div style={{ flex: 1, padding: '0.7rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                    <strong style={{ color: '#1e40af', fontSize: '0.82rem' }}>🟦 Top Anagram:</strong>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#1d4ed8' }}>
+                      {gameState.anagramLeaderboard?.length || 0} Pemain
+                    </span>
                   </div>
-                ) : (
-                  <p style={{ fontSize: '0.8rem', color: '#92400e', margin: 0 }}>Belum ada pemenang yang tercatat.</p>
-                )}
+                  {(gameState.anagramLeaderboard || []).length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', maxHeight: '130px', overflowY: 'auto' }}>
+                      {(gameState.anagramLeaderboard || []).slice(0, 5).map((p, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.75rem' }}>
+                          <span style={{ fontWeight: 'bold' }}>{idx === 0 ? '🥇' : `#${idx+1}`} {p.nickname}</span>
+                          <span style={{ color: '#1d4ed8', fontWeight: 'bold' }}>{p.points} Pts</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '0.75rem', color: '#1e40af', margin: 0 }}>Belum ada pemenang.</p>
+                  )}
+                </div>
               </div>
 
               {/* POOL TRACKING PROGRESS */}

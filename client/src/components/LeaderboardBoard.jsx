@@ -1,9 +1,38 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-export default function LeaderboardBoard({ gameState }) {
-  const { leaderboard = [], maxLeaderboardRows = 10 } = gameState;
+export default function LeaderboardBoard({ 
+  gameState, 
+  type = 'wordle', // 'wordle' | 'anagram' | 'all'
+  customTitle = null, 
+  customIcon = null,
+  customAccent = null
+}) {
+  const maxLeaderboardRows = gameState?.maxLeaderboardRows || 10;
   const limit = Math.min(Math.max(Number(maxLeaderboardRows) || 10, 1), 20);
-  const displayedPlayers = (leaderboard || []).slice(0, limit);
+
+  // Select appropriate leaderboard array based on type
+  let playersList = [];
+  if (type === 'wordle') {
+    playersList = gameState?.wordleLeaderboard || [];
+  } else if (type === 'anagram') {
+    playersList = gameState?.anagramLeaderboard || [];
+  } else {
+    playersList = gameState?.leaderboard || gameState?.wordleLeaderboard || [];
+  }
+
+  const displayedPlayers = playersList.slice(0, limit);
+
+  // Visual Theme per game type
+  const isWordle = type === 'wordle';
+  const isAnagram = type === 'anagram';
+
+  const defaultIcon = isWordle ? '🟩' : (isAnagram ? '🟦' : '🏆');
+  const defaultTitle = isWordle ? 'Top Wordle' : (isAnagram ? 'Top Anagram' : 'Top Pemenang');
+  const defaultAccent = isWordle ? '#16a34a' : (isAnagram ? '#2563eb' : '#f59e0b');
+
+  const icon = customIcon || defaultIcon;
+  const title = customTitle || defaultTitle;
+  const accent = customAccent || defaultAccent;
 
   // Track previous ranks and points to trigger overtake/rank-up animations
   const prevRankMapRef = useRef({});
@@ -33,7 +62,7 @@ export default function LeaderboardBoard({ gameState }) {
       }, 1400);
       return () => clearTimeout(timer);
     }
-  }, [leaderboard, limit]);
+  }, [playersList, limit]);
 
   // Rank badge styling helper
   const getRankBadge = (rank) => {
@@ -94,13 +123,13 @@ export default function LeaderboardBoard({ gameState }) {
         marginBottom: '0.15rem'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-          <span style={{ fontSize: '1.2rem' }}>🏆</span>
+          <span style={{ fontSize: '1.2rem' }}>{icon}</span>
           <h2 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#1f2937', margin: 0 }}>
-            Top Pemenang
+            {title}
           </h2>
         </div>
         <div style={{ 
-          backgroundColor: '#f59e0b', 
+          backgroundColor: accent, 
           color: 'white', 
           fontSize: '0.8rem', 
           fontWeight: '800', 
@@ -128,10 +157,12 @@ export default function LeaderboardBoard({ gameState }) {
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '0.35rem 0.65rem',
-                  backgroundColor: isRankUp ? 'rgba(245, 158, 11, 0.35)' : (idx === 0 ? 'rgba(30, 41, 59, 0.75)' : 'rgba(15, 23, 42, 0.65)'),
+                  backgroundColor: isRankUp 
+                    ? (isWordle ? 'rgba(22, 163, 74, 0.4)' : (isAnagram ? 'rgba(37, 99, 235, 0.4)' : 'rgba(245, 158, 11, 0.35)'))
+                    : (idx === 0 ? 'rgba(30, 41, 59, 0.75)' : 'rgba(15, 23, 42, 0.65)'),
                   borderRadius: '8px',
                   border: isRankUp 
-                    ? '2px solid #f59e0b' 
+                    ? `2px solid ${accent}` 
                     : (idx === 0 ? '1px solid rgba(251, 191, 36, 0.5)' : '1px solid rgba(255, 255, 255, 0.2)'),
                   backdropFilter: 'blur(6px)',
                   boxShadow: '0 2px 5px rgba(0,0,0,0.25)',
@@ -229,8 +260,8 @@ export default function LeaderboardBoard({ gameState }) {
             boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
           }}>
             <p style={{ color: 'white', fontSize: '0.85rem', fontWeight: '700', textShadow: '1px 1px 2px rgba(0,0,0,0.8)', margin: 0 }}>
-              🏆 Belum ada pemenang.<br />
-              <span style={{ fontSize: '0.75rem', color: '#93c5fd' }}>Yuk mulai tebak kata di live chat!</span>
+              {icon} Belum ada pemenang {isWordle ? 'Wordle' : (isAnagram ? 'Anagram' : '')}.<br />
+              <span style={{ fontSize: '0.75rem', color: isWordle ? '#86efac' : '#93c5fd' }}>Yuk mulai tebak kata di live chat!</span>
             </p>
           </div>
         )}
