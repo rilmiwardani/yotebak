@@ -499,20 +499,46 @@ export default function Overlay() {
     return targets[Math.floor(Math.random() * targets.length)];
   };
 
-  // Helper: Scramble word (ensures scrambled is different from word)
+  // Helper: Scramble word (ensures no letter is visually in its original position)
   const scrambleWord = (word) => {
-    const arr = word.split('');
-    let scrambled = word;
+    const originalArr = word.split('');
+    let scrambledArr = [...originalArr];
     let attempts = 0;
-    while (scrambled === word && attempts < 10) {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
+    
+    // Check if any letter visually remains in the same spot
+    const hasOriginalPosition = (arr) => {
+      for (let i = 0; i < word.length; i++) {
+        if (arr[i] === word[i]) return true;
       }
-      scrambled = arr.join('');
+      return false;
+    };
+
+    // Attempt up to 50 times to get a perfect derangement
+    while (attempts < 50) {
+      for (let i = scrambledArr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [scrambledArr[i], scrambledArr[j]] = [scrambledArr[j], scrambledArr[i]];
+      }
+      
+      if (!hasOriginalPosition(scrambledArr)) {
+        return scrambledArr.join('');
+      }
       attempts++;
     }
-    return scrambled;
+
+    // Fallback: Just ensure the overall word isn't exactly the original word
+    let fallbackScrambled = word;
+    attempts = 0;
+    while (fallbackScrambled === word && attempts < 10) {
+      for (let i = scrambledArr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [scrambledArr[i], scrambledArr[j]] = [scrambledArr[j], scrambledArr[i]];
+      }
+      fallbackScrambled = scrambledArr.join('');
+      attempts++;
+    }
+    
+    return fallbackScrambled;
   };
 
   // Helper: Generate list of anagram words with guaranteed non-repetition
