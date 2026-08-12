@@ -787,8 +787,20 @@ export default function Overlay() {
   const handleChat = (data) => {
     const state = gameStateRef.current;
     const chatText = (data.comment || data.text || '').trim().toLowerCase();
+    
+    // Create a unique signature for this chat event to prevent double-processing in multi-overlay setups
+    // TikFinity usually sends uniqueId or msgId. We combine user, text, and an approximate time bucket (2-second window)
+    const timeBucket = Math.floor(Date.now() / 2000);
+    const rawNick = data.nickname || data.uniqueId || 'User';
+    const chatSignature = `${rawNick}-${chatText}-${timeBucket}`;
+
+    const processedChats = state.lastProcessedChats || [];
+    if (processedChats.includes(chatSignature)) {
+      return; // Already processed by another overlay instance that synced the state
+    }
+
     const user = {
-      nickname: data.nickname || data.uniqueId || 'User',
+      nickname: rawNick,
       profilePic: data.profilePictureUrl || 'https://ui-avatars.com/api/?name=User'
     };
 
@@ -896,6 +908,10 @@ export default function Overlay() {
     }
 
     if (stateChanged) {
+      // Keep only the last 20 chat signatures to avoid memory bloat
+      const newProcessedChats = [chatSignature, ...processedChats].slice(0, 20);
+      updatedState.lastProcessedChats = newProcessedChats;
+
       gameStateRef.current = updatedState;
       setGameState(updatedState);
       broadcastState(updatedState);

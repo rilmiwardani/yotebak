@@ -58,10 +58,13 @@ export default function WinCard({ show, winner, word, mode, onExited }) {
       useWorker: true
     });
 
-    const duration = 2.5 * 1000;
+    const duration = 1.5 * 1000;
     const end = Date.now() + duration;
 
-    (function frame() {
+    const interval = setInterval(() => {
+      if (Date.now() > end) {
+        return clearInterval(interval);
+      }
       myConfetti({
         particleCount: 2,
         angle: 60,
@@ -74,11 +77,9 @@ export default function WinCard({ show, winner, word, mode, onExited }) {
         spread: 55,
         origin: { x: 1, y: 0.85 }
       });
+    }, 100);
 
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
-    }());
+    return () => clearInterval(interval);
   }, [render, isLeaving]);
 
   if (!render) return null;
