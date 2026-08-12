@@ -44,7 +44,7 @@ export default function WinCard({ show, winner, word, mode, onExited }) {
       if (remaining <= 0) {
         clearInterval(interval);
       }
-    }, 500); // Check every 500ms for smoother recovery from throttling
+    }, 500);
 
     return () => clearInterval(interval);
   }, [render, isLeaving]);
@@ -83,9 +83,12 @@ export default function WinCard({ show, winner, word, mode, onExited }) {
 
   if (!render) return null;
 
+  const isMultiWord = word && word.includes(',');
+  const wordList = isMultiWord ? word.split(',').map(w => w.trim()).filter(Boolean) : [word];
+
   return (
     <div className={`win-card-overlay ${isLeaving ? 'leaving' : ''}`}>
-      {/* Kanvas lokal berada di atas kartu kemenangan (zIndex: 10) agar konfeti terlihat jelas */}
+      {/* Kanvas lokal berada di atas kartu kemenangan agar konfeti terlihat jelas */}
       <canvas 
         ref={canvasRef} 
         style={{ 
@@ -99,80 +102,135 @@ export default function WinCard({ show, winner, word, mode, onExited }) {
         }} 
       />
       
-      <div style={{ zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', gap: '0.7rem' }}>
-        <h2 style={{ fontSize: '1.8rem', color: '#3f8c5c', fontWeight: '800', tracking: '-0.02em', margin: 0 }}>
-          {word.includes(',') ? 'Semua Kata Tertebak!' : 'Tepat Sekali!'}
+      <div style={{ 
+        zIndex: 2, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        width: '100%', 
+        height: '100%', 
+        gap: isMultiWord ? '0.5rem' : '0.7rem' 
+      }}>
+        {/* Title */}
+        <h2 style={{ 
+          fontSize: isMultiWord ? '1.5rem' : '1.75rem', 
+          color: '#166534', 
+          fontWeight: '800', 
+          letterSpacing: '-0.02em', 
+          margin: 0 
+        }}>
+          {isMultiWord ? '🧩 Semua Kata Tertebak!' : '🎉 Tepat Sekali!'}
         </h2>
         
-        <div>
-          <span style={{ fontSize: '0.85rem', color: '#6b7280', display: 'block', marginBottom: '0.35rem' }}>
-            {word.includes(',') ? 'Kata Rahasia:' : 'Kata rahasia:'}
+        {/* Secret Words Section */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+          <span style={{ fontSize: '0.75rem', color: '#6b7280', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Kata Rahasia:
           </span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'center', maxHeight: '180px', overflowY: 'auto' }}>
-            {word.split(',').map((w, wIdx) => {
-              const trimmed = w.trim();
-              const isMulti = word.includes(',');
-              return (
-                <div key={wIdx} style={{ display: 'flex', gap: '0.3rem', justifyContent: 'center' }}>
-                  {trimmed.split('').map((letter, i) => (
-                    <div 
-                      key={i}
-                      style={{
-                        width: isMulti ? '2.4rem' : '3rem',
-                        height: isMulti ? '2.4rem' : '3rem',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        fontSize: isMulti ? '1.4rem' : '1.8rem',
-                        fontWeight: '800',
-                        textTransform: 'uppercase',
-                        color: 'white',
-                        backgroundColor: 'var(--wordle-correct)',
-                        borderRadius: '6px',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                        textShadow: '0px 1px 2px rgba(0,0,0,0.3)'
-                      }}
-                    >
-                      {letter}
-                    </div>
-                  ))}
+          
+          {isMultiWord ? (
+            /* Multi-word Anagram: Ultra-Compact Pills */
+            <div style={{ 
+              display: 'flex', 
+              flexWrap: 'wrap', 
+              gap: '0.35rem', 
+              justifyContent: 'center', 
+              maxWidth: '320px',
+              padding: '0.2rem'
+            }}>
+              {wordList.map((w, idx) => (
+                <div 
+                  key={idx}
+                  style={{
+                    backgroundColor: 'var(--wordle-correct)',
+                    color: '#ffffff',
+                    padding: '0.3rem 0.7rem',
+                    borderRadius: '6px',
+                    fontSize: '0.95rem',
+                    fontWeight: '800',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                    textShadow: '0px 1px 2px rgba(0,0,0,0.3)'
+                  }}
+                >
+                  {w}
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : (
+            /* Single Word (Wordle or 1-word Anagram): Clean Letter Tiles */
+            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
+              {(wordList[0] || '').split('').map((letter, i) => (
+                <div 
+                  key={i}
+                  style={{
+                    width: '3.2rem',
+                    height: '3.2rem',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    fontSize: '2rem',
+                    fontWeight: '800',
+                    textTransform: 'uppercase',
+                    color: 'white',
+                    backgroundColor: 'var(--wordle-correct)',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.15)',
+                    textShadow: '0px 1px 2px rgba(0,0,0,0.3)'
+                  }}
+                >
+                  {letter}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
-          <img 
-            src={winner.profilePic} 
-            alt="Winner Profile" 
-            style={{ 
-              width: word.includes(',') ? '75px' : '90px', 
-              height: word.includes(',') ? '75px' : '90px', 
-              borderRadius: '16px', 
-              border: '3px solid white', 
-              boxShadow: '0 4px 10px rgba(0,0,0,0.12)',
-              objectFit: 'cover'
-            }} 
-          />
-          <div>
-            <span style={{ fontSize: '0.75rem', color: '#9ca3af', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {word.includes(',') ? 'Penebak Terakhir' : 'Pemenang'}
-            </span>
-            <h3 style={{ fontSize: '1.4rem', fontWeight: '800', color: '#1f2937', marginTop: '0.05rem', maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {winner.nickname}
-            </h3>
+        {/* Winner Profile */}
+        {winner && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem', marginTop: '0.1rem' }}>
+            <img 
+              src={winner.profilePic} 
+              alt="Winner Profile" 
+              style={{ 
+                width: isMultiWord ? '60px' : '75px', 
+                height: isMultiWord ? '60px' : '75px', 
+                borderRadius: '12px', 
+                border: '2.5px solid white', 
+                boxShadow: '0 4px 8px rgba(0,0,0,0.12)',
+                objectFit: 'cover'
+              }} 
+            />
+            <div style={{ textAlign: 'center' }}>
+              <span style={{ fontSize: '0.7rem', color: '#9ca3af', display: 'block', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.05em' }}>
+                {isMultiWord ? 'Penebak Terakhir' : 'Pemenang'}
+              </span>
+              <h3 style={{ 
+                fontSize: '1.25rem', 
+                fontWeight: '800', 
+                color: '#1f2937', 
+                margin: 0, 
+                maxWidth: '180px', 
+                whiteSpace: 'nowrap', 
+                overflow: 'hidden', 
+                textOverflow: 'ellipsis' 
+              }}>
+                {winner.nickname}
+              </h3>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Countdown Bar */}
-        <div style={{ width: '100%', maxWidth: '280px', marginTop: '0.5rem' }}>
-          <p style={{ fontSize: '0.75rem', color: '#9ca3af', textAlign: 'center', marginBottom: '0.3rem' }}>
+        {/* Countdown Progress Bar */}
+        <div style={{ width: '100%', maxWidth: '240px', marginTop: '0.3rem' }}>
+          <p style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center', marginBottom: '0.25rem', fontWeight: '600' }}>
             Game baru dalam {countdown}s...
           </p>
           <div style={{
             width: '100%',
-            height: '6px',
+            height: '5px',
             backgroundColor: '#e5e7eb',
             borderRadius: '3px',
             overflow: 'hidden'
@@ -186,6 +244,7 @@ export default function WinCard({ show, winner, word, mode, onExited }) {
             }} />
           </div>
         </div>
+
       </div>
     </div>
   );
