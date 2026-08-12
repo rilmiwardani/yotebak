@@ -121,7 +121,8 @@ export default function Overlay() {
         targets.forEach(w => validSet.add(w));
         validWordsSetRef.current = validSet;
 
-        console.log(`Loaded ${targets.length} target words and ${validSet.size} valid words.`);
+        playedWordsRef.current = loadPlayedWords();
+        console.log(`Loaded ${targets.length} target words (${playedWordsRef.current.size} previously played) and ${validSet.size} valid words.`);
         
         // Start first game
         initGame('wordle', null, targets);
@@ -234,17 +235,52 @@ export default function Overlay() {
     });
   };
 
-  // Helper: Pick random word
-  const pickRandomWord = (targets = targetWordsRef.current) => {
-    if (targets.length === 0) return 'segar';
+  // Persistence helpers for played words pool
+  const loadPlayedWords = () => {
+    try {
+      const saved = localStorage.getItem('yotebak_played_words');
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr)) {
+          return new Set(arr);
+        }
+      }
+    } catch (_) {}
+    return new Set();
+  };
+
+  const savePlayedWords = (set) => {
+    try {
+      localStorage.setItem('yotebak_played_words', JSON.stringify(Array.from(set)));
+    } catch (_) {}
+  };
+
+  // Draw a guaranteed unique non-repeated target word until all pool words are exhausted
+  const drawTargetWord = (targets = targetWordsRef.current) => {
+    if (!targets || targets.length === 0) return 'segar';
+
     let available = targets.filter(w => !playedWordsRef.current.has(w));
+
+    // If all words in the pool have been played, reset the pool!
     if (available.length === 0) {
+      console.log(`[WordPool] Semua ${targets.length} kata telah dimainkan! Mereset pool kata dari awal.`);
       playedWordsRef.current.clear();
-      available = targets;
+      savePlayedWords(playedWordsRef.current);
+      available = [...targets];
     }
+
     const picked = available[Math.floor(Math.random() * available.length)];
     playedWordsRef.current.add(picked);
+    savePlayedWords(playedWordsRef.current);
+
+    console.log(`[WordPool] Kata terpilih: "${picked}" | Progres Pool: ${playedWordsRef.current.size} / ${targets.length} kata`);
     return picked;
+  };
+
+  // Get a random hint word for "Kata Lalu" (does NOT consume from the target pool)
+  const getRandomHintWord = (targets = targetWordsRef.current) => {
+    if (!targets || targets.length === 0) return 'makan';
+    return targets[Math.floor(Math.random() * targets.length)];
   };
 
   // Helper: Scramble word (ensures scrambled is different from word)
@@ -263,11 +299,11 @@ export default function Overlay() {
     return scrambled;
   };
 
-  // Helper: Generate list of anagram words
+  // Helper: Generate list of anagram words with guaranteed non-repetition
   const generateAnagramWords = (targets, count) => {
     const chosenWords = [];
     while (chosenWords.length < count) {
-      const picked = pickRandomWord(targets);
+      const picked = drawTargetWord(targets);
       if (!chosenWords.includes(picked)) {
         chosenWords.push(picked);
       }
@@ -289,8 +325,8 @@ export default function Overlay() {
     const count = anagramCount || (gameStateRef.current ? (gameStateRef.current.anagramRows || 3) : 3);
     const validAnagramRows = Math.min(Math.max(Number(count) || 3, 1), 6);
 
-    const wordleWord = specificWord ? specificWord.toLowerCase() : pickRandomWord(targets);
-    const firstGuess = (lastTargetWord && lastTargetWord.length === 5) ? lastTargetWord : pickRandomWord(targets);
+    const wordleWord = specificWord ? specificWord.toLowerCase() : drawTargetWord(targets);
+    const firstGuess = (lastTargetWord && lastTargetWord.length === 5) ? lastTargetWord : getRandomHintWord(targets);
     const anagramList = generateAnagramWords(targets, validAnagramRows);
 
     const newGameState = {
@@ -310,6 +346,9 @@ export default function Overlay() {
       anagramStatus: 'playing',
       anagramWinner: null,
       anagramRows: validAnagramRows,
+      // Pool tracking fields
+      poolPlayed: playedWordsRef.current.size,
+      poolTotal: targets.length || 1958,
       // Fallback overall status
       status: 'playing',
       winner: null,
@@ -327,8 +366,8 @@ export default function Overlay() {
   const restartWordlePart = () => {
     const targets = targetWordsRef.current;
     const lastWordleWord = gameStateRef.current ? gameStateRef.current.targetWord : null;
-    const newWord = pickRandomWord(targets);
-    const firstGuess = (lastWordleWord && lastWordleWord.length === 5) ? lastWordleWord : pickRandomWord(targets);
+    const newWord = drawTargetWord(targets);
+    const firstGuess = (lastWordleWord && lastWordleWord.length === 5) ? lastWordleWord : getRandomHintWord(targets);
 
     setGameState(prev => {
       const updated = {
@@ -340,6 +379,7 @@ export default function Overlay() {
         }],
         wordleStatus: 'playing',
         wordleWinner: null,
+        poolPlayed: playedWordsRef.current.size,
       };
       gameStateRef.current = updated;
       broadcastState(updated);
@@ -361,6 +401,7 @@ export default function Overlay() {
         anagramWords: anagramList,
         anagramStatus: 'playing',
         anagramWinner: null,
+        poolPlayed: playedWordsRef.current.size,
       };
       gameStateRef.current = updated;
       broadcastState(updated);

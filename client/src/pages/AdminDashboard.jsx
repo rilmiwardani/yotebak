@@ -531,6 +531,30 @@ export default function AdminDashboard() {
                 </div>
               )}
 
+              {/* POOL TRACKING PROGRESS */}
+              <div style={{ marginTop: '0.8rem', padding: '0.6rem 0.8rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#475569' }}>
+                    📚 Pool Kata Digunakan:
+                  </span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#2563eb' }}>
+                    {gameState.poolPlayed || 0} / {gameState.poolTotal || 1958} Kata
+                  </span>
+                </div>
+                <div style={{ width: '100%', height: '4px', backgroundColor: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${Math.min(((gameState.poolPlayed || 0) / (gameState.poolTotal || 1958)) * 100, 100)}%`,
+                    height: '100%',
+                    backgroundColor: '#2563eb',
+                    borderRadius: '2px',
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+                <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.35rem' }}>
+                  ✨ <em>Kata target tidak akan pernah diulang sampai seluruh 1.958 kata habis.</em>
+                </p>
+              </div>
+
             </div>
           ) : (
             <p>Masukkan Kode Kamar dan hubungkan ke OBS untuk melihat status permainan.</p>
