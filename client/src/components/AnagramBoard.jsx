@@ -75,25 +75,7 @@ export default function AnagramBoard({ gameState }) {
                 gap: '1rem',
               }}
             >
-              {/* Row Number Badge */}
-              <div style={{
-                width: '1.8rem',
-                height: '1.8rem',
-                borderRadius: '50%',
-                backgroundColor: item.solved ? '#2b8a3e' : '#8b5cf6',
-                color: 'white',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                fontSize: '0.85rem',
-                fontWeight: '800',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                flexShrink: 0
-              }}>
-                {idx + 1}
-              </div>
-
-              {/* Letter Tiles */}
+              {/* Letter Tiles (Tanpa angka, sejajar rapi dengan Wordle) */}
               <div style={{ display: 'flex', gap: dim.gap }}>
                 {displayLetters.map((letter, i) => (
                   <div
@@ -122,7 +104,7 @@ export default function AnagramBoard({ gameState }) {
                 ))}
               </div>
 
-              {/* Winner Profile or Status on Right Side */}
+              {/* Winner Profile or Animated Status on Right Side */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '150px' }}>
                 {item.solved && item.winner ? (
                   <>
@@ -163,22 +145,31 @@ export default function AnagramBoard({ gameState }) {
                     </div>
                   </>
                 ) : (
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.4rem',
-                    padding: '0.3rem 0.6rem',
-                    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-                    borderRadius: '6px',
-                    backdropFilter: 'blur(4px)'
-                  }}>
+                  <div 
+                    className="chat-prompt-animated"
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0.45rem',
+                      padding: '0.4rem 0.75rem',
+                      borderRadius: '8px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                    }}
+                  >
+                    <span style={{ fontSize: '1rem', display: 'inline-block' }}>💬</span>
                     <span style={{ 
-                      color: 'rgba(255,255,255,0.85)', 
-                      fontSize: '0.8rem', 
-                      fontWeight: '600',
-                      textShadow: '1px 1px 2px rgba(0,0,0,0.8)'
+                      color: '#ffffff', 
+                      fontSize: '0.85rem', 
+                      fontWeight: '800',
+                      letterSpacing: '0.02em',
+                      textShadow: '1px 1px 3px rgba(0,0,0,0.9)'
                     }}>
-                      💬 Ketik di chat...
+                      Ketik di chat
+                    </span>
+                    <span style={{ display: 'inline-flex', gap: '3px', alignItems: 'center', marginLeft: '1px' }}>
+                      <span className="dot-1" style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#ffffff', display: 'inline-block' }}></span>
+                      <span className="dot-2" style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#ffffff', display: 'inline-block' }}></span>
+                      <span className="dot-3" style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#ffffff', display: 'inline-block' }}></span>
                     </span>
                   </div>
                 )}
