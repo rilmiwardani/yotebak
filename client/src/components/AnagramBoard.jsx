@@ -17,18 +17,8 @@ export default function AnagramBoard({ gameState }) {
   const totalCount = words.length;
   const solvedCount = words.filter(w => w.solved).length;
 
-  // Adaptive size based on row count so 1-6 rows always look balanced
-  const getRowDimensions = () => {
-    if (totalCount === 1) return { tileSize: '4.5rem', fontSize: '3.0rem', gap: '0.6rem', rowGap: '1rem', avatarSize: '4.5rem', nameSize: '1.2rem' };
-    if (totalCount === 2) return { tileSize: '4.0rem', fontSize: '2.6rem', gap: '0.5rem', rowGap: '0.8rem', avatarSize: '4.0rem', nameSize: '1.15rem' };
-    if (totalCount <= 4) return { tileSize: '3.4rem', fontSize: '2.2rem', gap: '0.4rem', rowGap: '0.6rem', avatarSize: '3.4rem', nameSize: '1.1rem' };
-    return { tileSize: '2.85rem', fontSize: '1.8rem', gap: '0.35rem', rowGap: '0.5rem', avatarSize: '2.85rem', nameSize: '0.95rem' };
-  };
-
-  const dim = getRowDimensions();
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', width: 'fit-content' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: 'fit-content' }}>
       
       {/* Header Info */}
       <div style={{ 
@@ -36,14 +26,15 @@ export default function AnagramBoard({ gameState }) {
         justifyContent: 'space-between', 
         alignItems: 'center', 
         backgroundColor: 'rgba(255, 255, 255, 0.92)', 
-        padding: '0.5rem 1.2rem', 
-        borderRadius: '12px',
-        boxShadow: '0 4px 10px rgba(0,0,0,0.12)',
+        padding: '0.5rem 1rem', 
+        borderRadius: '8px',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
         backdropFilter: 'blur(8px)',
-        border: '1px solid rgba(255,255,255,0.6)'
+        border: '1px solid rgba(255,255,255,0.6)',
+        marginBottom: '0.2rem'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '1.3rem' }}>🧩</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span style={{ fontSize: '1.2rem' }}>🧩</span>
           <h2 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#1f2937', margin: 0 }}>
             Susun Kata Ini!
           </h2>
@@ -53,7 +44,7 @@ export default function AnagramBoard({ gameState }) {
           color: 'white', 
           fontSize: '0.85rem', 
           fontWeight: '800', 
-          padding: '0.25rem 0.75rem', 
+          padding: '0.2rem 0.65rem', 
           borderRadius: '999px',
           boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
         }}>
@@ -61,8 +52,8 @@ export default function AnagramBoard({ gameState }) {
         </div>
       </div>
 
-      {/* Rows Container */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: dim.rowGap }}>
+      {/* Rows Container - Sizing IDENTIK 100% dengan WordleBoard */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {words.map((item, idx) => {
           const displayLetters = (item.solved ? item.targetWord : item.scrambledWord).split('');
 
@@ -75,19 +66,19 @@ export default function AnagramBoard({ gameState }) {
                 gap: '1rem',
               }}
             >
-              {/* Letter Tiles (Tanpa angka, sejajar rapi dengan Wordle) */}
-              <div style={{ display: 'flex', gap: dim.gap }}>
+              {/* Letter Tiles - Ukuran, font, dan shadow sama persis dengan Wordle (4rem x 4rem, font 2.6rem) */}
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
                 {displayLetters.map((letter, i) => (
                   <div
                     key={i}
                     className={item.solved ? 'flip-animate' : ''}
                     style={{
-                      width: dim.tileSize,
-                      height: dim.tileSize,
+                      width: '4rem',
+                      height: '4rem',
                       display: 'flex',
                       justifyContent: 'center',
                       alignItems: 'center',
-                      fontSize: dim.fontSize,
+                      fontSize: '2.6rem',
                       fontWeight: '800',
                       textShadow: '0px 1px 3px rgba(0, 0, 0, 0.3)',
                       textTransform: 'uppercase',
@@ -95,8 +86,7 @@ export default function AnagramBoard({ gameState }) {
                       backgroundColor: item.solved ? 'var(--wordle-correct)' : '#8b5cf6',
                       borderRadius: '8px',
                       animationDelay: item.solved ? `${i * 0.08}s` : '0s',
-                      boxShadow: '0 4px 6px rgba(0,0,0,0.15)',
-                      transition: 'all 0.3s ease'
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
                     }}
                   >
                     {letter}
@@ -104,7 +94,7 @@ export default function AnagramBoard({ gameState }) {
                 ))}
               </div>
 
-              {/* Winner Profile or Animated Status on Right Side */}
+              {/* Winner Profile or Animated Status on Right Side (Ukuran avatar 4rem x 4rem sama persis dengan Wordle) */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '150px' }}>
                 {item.solved && item.winner ? (
                   <>
@@ -112,8 +102,8 @@ export default function AnagramBoard({ gameState }) {
                       src={item.winner.profilePic} 
                       alt="pfp" 
                       style={{ 
-                        width: dim.avatarSize, 
-                        height: dim.avatarSize, 
+                        width: '4rem', 
+                        height: '4rem', 
                         borderRadius: '8px', 
                         border: '2px solid white', 
                         boxShadow: '0 2px 4px rgba(0,0,0,0.2)', 
@@ -125,7 +115,7 @@ export default function AnagramBoard({ gameState }) {
                       <span style={{ 
                         fontWeight: '800', 
                         color: 'white', 
-                        fontSize: dim.nameSize, 
+                        fontSize: '1.2rem', 
                         maxWidth: '120px', 
                         whiteSpace: 'nowrap', 
                         overflow: 'hidden', 
@@ -151,22 +141,23 @@ export default function AnagramBoard({ gameState }) {
                       display: 'flex', 
                       alignItems: 'center', 
                       gap: '0.45rem',
-                      padding: '0.4rem 0.75rem',
+                      height: '4rem',
+                      padding: '0 0.9rem',
                       borderRadius: '8px',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
                     }}
                   >
-                    <span style={{ fontSize: '1rem', display: 'inline-block' }}>💬</span>
+                    <span style={{ fontSize: '1.1rem', display: 'inline-block' }}>💬</span>
                     <span style={{ 
                       color: '#ffffff', 
-                      fontSize: '0.85rem', 
+                      fontSize: '0.95rem', 
                       fontWeight: '800',
                       letterSpacing: '0.02em',
                       textShadow: '1px 1px 3px rgba(0,0,0,0.9)'
                     }}>
                       Ketik di chat
                     </span>
-                    <span style={{ display: 'inline-flex', gap: '3px', alignItems: 'center', marginLeft: '1px' }}>
+                    <span style={{ display: 'inline-flex', gap: '3px', alignItems: 'center', marginLeft: '2px' }}>
                       <span className="dot-1" style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#ffffff', display: 'inline-block' }}></span>
                       <span className="dot-2" style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#ffffff', display: 'inline-block' }}></span>
                       <span className="dot-3" style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: '#ffffff', display: 'inline-block' }}></span>
