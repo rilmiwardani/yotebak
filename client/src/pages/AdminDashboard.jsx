@@ -786,82 +786,91 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1.2rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '600', fontSize: '0.95rem' }}>📏 Panjang Kata Wordle Biasa (Jumlah Huruf):</label>
-            <select 
-              value={wordLength} 
-              onChange={(e) => setWordLength(parseInt(e.target.value))}
-              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', width: '100%', fontSize: '0.95rem' }}
-            >
-              <option value={5}>5 Huruf</option>
-              <option value={6}>6 Huruf</option>
-              <option value={7}>7 Huruf</option>
-            </select>
-          </div>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', 
+            gap: '0.6rem', 
+            marginTop: '1.2rem', 
+            borderTop: '1px solid #eee', 
+            paddingTop: '1rem' 
+          }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '600', fontSize: '0.78rem' }}>📏 Len Wordle Biasa:</label>
+              <select 
+                value={wordLength} 
+                onChange={(e) => setWordLength(parseInt(e.target.value))}
+                style={{ padding: '0.4rem', borderRadius: '4px', border: '1px solid #ccc', width: '100%', fontSize: '0.85rem' }}
+              >
+                <option value={5}>5 Huruf</option>
+                <option value={6}>6 Huruf</option>
+                <option value={7}>7 Huruf</option>
+              </select>
+            </div>
 
-          <div style={{ marginTop: '1.2rem', borderTop: '1px solid #eee', paddingTop: '1.2rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '600', fontSize: '0.95rem', color: '#6d28d9' }}>🟪/🧩 Panjang Kata Long Wordle & Long Anagram (10–15 Huruf):</label>
-            <select 
-              value={gameState?.longWordLength || longWordLength} 
-              onChange={handleLongWordLengthChange}
-              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #c4b5fd', background: '#faf5ff', width: '100%', fontSize: '0.95rem' }}
-            >
-              <option value={10}>10 Huruf (4.420 Kata)</option>
-              <option value={11}>11 Huruf (3.198 Kata)</option>
-              <option value={12}>12 Huruf (2.214 Kata)</option>
-              <option value={13}>13 Huruf (1.480 Kata)</option>
-              <option value={14}>14 Huruf (886 Kata)</option>
-              <option value={15}>15 Huruf (519 Kata)</option>
-            </select>
-          </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '600', fontSize: '0.78rem', color: '#6d28d9' }}>🟪/🧩 Len Long Word:</label>
+              <select 
+                value={gameState?.longWordLength || longWordLength} 
+                onChange={handleLongWordLengthChange}
+                style={{ padding: '0.4rem', borderRadius: '4px', border: '1px solid #c4b5fd', background: '#faf5ff', width: '100%', fontSize: '0.85rem' }}
+              >
+                <option value={10}>10 Huruf</option>
+                <option value={11}>11 Huruf</option>
+                <option value={12}>12 Huruf</option>
+                <option value={13}>13 Huruf</option>
+                <option value={14}>14 Huruf</option>
+                <option value={15}>15 Huruf</option>
+              </select>
+            </div>
 
-          <div style={{ marginTop: '1.2rem', borderTop: '1px solid #eee', paddingTop: '1.2rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '600', fontSize: '0.95rem' }}>📏 Baris Wordle di Layar:</label>
-            <select 
-              value={gameState?.maxRows || 6} 
-              onChange={handleMaxRowsChange}
-              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', width: '100%', fontSize: '0.95rem' }}
-            >
-              <option value={3}>3 Baris</option>
-              <option value={4}>4 Baris</option>
-              <option value={5}>5 Baris</option>
-              <option value={6}>6 Baris</option>
-              <option value={7}>7 Baris</option>
-              <option value={8}>8 Baris</option>
-              <option value={10}>10 Baris</option>
-            </select>
-          </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '600', fontSize: '0.78rem' }}>📏 Baris Wordle:</label>
+              <select 
+                value={gameState?.maxRows || 6} 
+                onChange={handleMaxRowsChange}
+                style={{ padding: '0.4rem', borderRadius: '4px', border: '1px solid #ccc', width: '100%', fontSize: '0.85rem' }}
+              >
+                <option value={3}>3 Baris</option>
+                <option value={4}>4 Baris</option>
+                <option value={5}>5 Baris</option>
+                <option value={6}>6 Baris</option>
+                <option value={7}>7 Baris</option>
+                <option value={8}>8 Baris</option>
+                <option value={10}>10 Baris</option>
+              </select>
+            </div>
 
-          <div style={{ marginTop: '1.2rem', borderTop: '1px solid #eee', paddingTop: '1.2rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '600', fontSize: '0.95rem' }}>📝 Jumlah Baris Kata Anagram Biasa (1–6 Kata):</label>
-            <select 
-              value={gameState?.anagramRows || anagramRows} 
-              onChange={handleAnagramRowsChange}
-              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc', width: '100%', fontSize: '0.95rem' }}
-            >
-              <option value={1}>1 Kata (Single)</option>
-              <option value={2}>2 Kata</option>
-              <option value={3}>3 Kata (Default)</option>
-              <option value={4}>4 Kata</option>
-              <option value={5}>5 Kata</option>
-              <option value={6}>6 Kata (Maksimal)</option>
-            </select>
-          </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '600', fontSize: '0.78rem' }}>📝 Baris Anagram:</label>
+              <select 
+                value={gameState?.anagramRows || anagramRows} 
+                onChange={handleAnagramRowsChange}
+                style={{ padding: '0.4rem', borderRadius: '4px', border: '1px solid #ccc', width: '100%', fontSize: '0.85rem' }}
+              >
+                <option value={1}>1 Kata</option>
+                <option value={2}>2 Kata</option>
+                <option value={3}>3 Kata</option>
+                <option value={4}>4 Kata</option>
+                <option value={5}>5 Kata</option>
+                <option value={6}>6 Kata</option>
+              </select>
+            </div>
 
-          <div style={{ marginTop: '1.2rem', borderTop: '1px solid #eee', paddingTop: '1.2rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: '600', fontSize: '0.95rem', color: '#4338ca' }}>🧩 Jumlah Baris Kata Long Anagram (1–6 Kata):</label>
-            <select 
-              value={gameState?.longAnagramRows || longAnagramRows} 
-              onChange={handleLongAnagramRowsChange}
-              style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #c7d2fe', background: '#eef2ff', width: '100%', fontSize: '0.95rem' }}
-            >
-              <option value={1}>1 Kata (Single)</option>
-              <option value={2}>2 Kata</option>
-              <option value={3}>3 Kata (Default)</option>
-              <option value={4}>4 Kata</option>
-              <option value={5}>5 Kata</option>
-              <option value={6}>6 Kata (Maksimal)</option>
-            </select>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '600', fontSize: '0.78rem', color: '#4338ca' }}>🧩 Baris Long Anag:</label>
+              <select 
+                value={gameState?.longAnagramRows || longAnagramRows} 
+                onChange={handleLongAnagramRowsChange}
+                style={{ padding: '0.4rem', borderRadius: '4px', border: '1px solid #c7d2fe', background: '#eef2ff', width: '100%', fontSize: '0.85rem' }}
+              >
+                <option value={1}>1 Kata</option>
+                <option value={2}>2 Kata</option>
+                <option value={3}>3 Kata</option>
+                <option value={4}>4 Kata</option>
+                <option value={5}>5 Kata</option>
+                <option value={6}>6 Kata</option>
+              </select>
+            </div>
           </div>
 
           {/* LEADERBOARD CONTROLS */}
@@ -948,281 +957,238 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div style={{ flex: 1, padding: '1.5rem', background: '#fff', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ marginBottom: '1rem' }}>📊 Status Saat Ini</h2>
+        <div style={{ flex: 1, padding: '1.2rem', background: '#fff', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem', borderBottom: '2px solid #f1f5f9', paddingBottom: '0.5rem' }}>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#1e293b', margin: 0 }}>📊 Status & Leaderboard</h2>
+            {gameState && (
+              <span style={{ 
+                padding: '0.2rem 0.5rem', 
+                borderRadius: '4px', 
+                color: 'white', 
+                fontWeight: '800',
+                fontSize: '0.72rem',
+                background: gameState.mode === 'dual' 
+                  ? 'linear-gradient(135deg, #10b981 0%, #2563eb 100%)' 
+                  : (gameState.mode === 'longwordle' ? '#7c3aed' : (gameState.mode === 'longanagram' ? '#4f46e5' : (gameState.mode === 'wordle' ? '#10b981' : '#2563eb')))
+              }}>
+                Mode: {gameState.mode === 'dual' ? '🔥 DUAL' : (gameState.mode === 'longwordle' ? '✨ LONG WORDLE' : (gameState.mode === 'longanagram' ? '🧩 LONG ANAGRAM' : gameState.mode?.toUpperCase()))}
+              </span>
+            )}
+          </div>
+
           {gameState ? (
-            <div>
-              <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <strong>Mode Aktif:</strong>
-                <span style={{ 
-                  padding: '0.2rem 0.6rem', 
-                  borderRadius: '6px', 
-                  color: 'white', 
-                  fontWeight: 'bold',
-                  fontSize: '0.85rem',
-                  background: gameState.mode === 'dual' 
-                    ? 'linear-gradient(135deg, #10b981 0%, #2563eb 100%)' 
-                    : (gameState.mode === 'longwordle' ? '#7c3aed' : (gameState.mode === 'longanagram' ? '#4f46e5' : (gameState.mode === 'wordle' ? '#10b981' : '#2563eb')))
-                }}>
-                  {gameState.mode === 'dual' ? '🔥 DUAL (WORDLE + ANAGRAM)' : (gameState.mode === 'longwordle' ? '🟪 LONG WORDLE' : (gameState.mode === 'longanagram' ? '🧩 LONG ANAGRAM' : gameState.mode?.toUpperCase()))}
-                </span>
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
               
-              {/* LONG WORDLE STATUS BLOCK */}
-              {gameState.mode === 'longwordle' && (
-                <div style={{ padding: '0.8rem', background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: '8px', marginBottom: '0.8rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                    <strong style={{ color: '#6d28d9' }}>🟪 Long Wordle ({gameState.longWordLength || 10} Huruf):</strong>
-                    <span style={{ 
-                      fontSize: '0.8rem', 
-                      fontWeight: 'bold', 
-                      color: gameState.longWordleStatus === 'won' ? '#16a34a' : '#7c3aed' 
+              {/* 2X2 STATUS GRID OF GAMES */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.6rem' }}>
+                
+                {/* 1. WORDLE STATUS */}
+                {(() => {
+                  const isActive = gameState.mode === 'wordle' || gameState.mode === 'dual';
+                  return (
+                    <div style={{ 
+                      padding: '0.6rem', 
+                      background: isActive ? '#f0fdf4' : '#f8fafc', 
+                      border: isActive ? '1px solid #bbf7d0' : '1px solid #e2e8f0', 
+                      borderRadius: '6px',
+                      opacity: isActive ? 1 : 0.6
                     }}>
-                      {gameState.longWordleStatus === 'won' ? '✅ Selesai (Won)' : '🎮 Sedang Berlangsung'}
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '0.9rem' }}>Kata Target: <span style={{ textTransform: 'uppercase', fontWeight: 'bold', color: '#7c3aed' }}>{gameState.longWordleTargetWord || gameState.targetWord}</span></p>
-                  <p style={{ fontSize: '0.9rem' }}>Tebakan Masuk: <strong>{gameState.longWordleGuesses?.length || (gameState.mode === 'longwordle' ? gameState.guesses?.length : 0) || 0}</strong></p>
-                  {gameState.longWordleWinner && (
-                    <p style={{ fontSize: '0.85rem', color: '#6d28d9', marginTop: '0.2rem' }}>
-                      Pemenang: <strong>{gameState.longWordleWinner.nickname}</strong>
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* LONG ANAGRAM STATUS BLOCK */}
-              {gameState.mode === 'longanagram' && (
-                <div style={{ padding: '0.8rem', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '8px', marginBottom: '0.8rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                    <strong style={{ color: '#4338ca' }}>🧩 Long Anagram ({gameState.longWordLength || 10} Huruf):</strong>
-                    <span style={{ 
-                      fontSize: '0.8rem', 
-                      fontWeight: 'bold', 
-                      color: gameState.longAnagramStatus === 'won' ? '#16a34a' : '#4f46e5' 
-                    }}>
-                      {gameState.longAnagramStatus === 'won' 
-                        ? '✅ Semua Tertebak' 
-                        : `🎮 ${gameState.longAnagramWords?.filter(w => w.solved).length || 0} / ${gameState.longAnagramWords?.length || 1} Tertebak`}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.4rem' }}>
-                    {(gameState.longAnagramWords || []).map((item, idx) => (
-                      <div key={idx} style={{ 
-                        padding: '0.4rem 0.6rem', 
-                        borderRadius: '4px', 
-                        background: item.solved ? '#e6f4ea' : 'white', 
-                        border: item.solved ? '1px solid #c3e6cb' : '1px solid #e5e7eb',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        fontSize: '0.85rem'
-                      }}>
-                        <div>
-                          <span style={{ fontWeight: 'bold', color: '#6b7280', marginRight: '0.3rem' }}>#{idx + 1}</span>
-                          <span style={{ textTransform: 'uppercase', fontWeight: 'bold', color: item.solved ? '#2b8a3e' : '#1f2937' }}>
-                            {item.targetWord}
-                          </span>
-                          <span style={{ marginLeft: '0.3rem', fontSize: '0.75rem', color: '#6b7280' }}>
-                            (Acak: <strong style={{ color: '#4f46e5', textTransform: 'uppercase' }}>{item.scrambledWord}</strong>)
-                          </span>
-                        </div>
-                        <div>
-                          {item.solved ? (
-                            <span style={{ fontSize: '0.75rem', color: '#2b8a3e', fontWeight: 'bold' }}>
-                              ✅ {item.winner?.nickname || 'Tertebak'}
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 'bold' }}>
-                              ⏳ Belum
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* WORDLE STATUS BLOCK */}
-              {gameState.mode !== 'longwordle' && gameState.mode !== 'longanagram' && (
-                <div style={{ padding: '0.8rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', marginBottom: '0.8rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                    <strong style={{ color: '#166534' }}>🟩 Wordle:</strong>
-                    <span style={{ 
-                      fontSize: '0.8rem', 
-                      fontWeight: 'bold', 
-                      color: gameState.wordleStatus === 'won' ? '#16a34a' : '#2563eb' 
-                    }}>
-                      {gameState.wordleStatus === 'won' ? '✅ Selesai (Won)' : '🎮 Sedang Berlangsung'}
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '0.9rem' }}>Kata Target: <span style={{ textTransform: 'uppercase', fontWeight: 'bold', color: '#15803d' }}>{gameState.targetWord}</span></p>
-                  <p style={{ fontSize: '0.9rem' }}>Tebakan Masuk: <strong>{gameState.guesses?.length || 0}</strong></p>
-                  {gameState.wordleWinner && (
-                    <p style={{ fontSize: '0.85rem', color: '#166534', marginTop: '0.2rem' }}>
-                      Pemenang: <strong>{gameState.wordleWinner.nickname}</strong>
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* ANAGRAM STATUS BLOCK */}
-              {gameState.mode !== 'longwordle' && gameState.mode !== 'longanagram' && (
-                <div style={{ padding: '0.8rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', marginBottom: '0.8rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                    <strong style={{ color: '#1e40af' }}>🟦 Anagram:</strong>
-                    <span style={{ 
-                      fontSize: '0.8rem', 
-                      fontWeight: 'bold', 
-                      color: gameState.anagramStatus === 'won' ? '#16a34a' : '#2563eb' 
-                    }}>
-                      {gameState.anagramStatus === 'won' 
-                        ? '✅ Semua Tertebak' 
-                        : `🎮 ${gameState.anagramWords?.filter(w => w.solved).length || 0} / ${gameState.anagramWords?.length || 1} Tertebak`}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.4rem' }}>
-                    {(gameState.anagramWords || []).map((item, idx) => (
-                      <div key={idx} style={{ 
-                        padding: '0.4rem 0.6rem', 
-                        borderRadius: '4px', 
-                        background: item.solved ? '#e6f4ea' : 'white', 
-                        border: item.solved ? '1px solid #c3e6cb' : '1px solid #e5e7eb',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        fontSize: '0.85rem'
-                      }}>
-                        <div>
-                          <span style={{ fontWeight: 'bold', color: '#6b7280', marginRight: '0.3rem' }}>#{idx + 1}</span>
-                          <span style={{ textTransform: 'uppercase', fontWeight: 'bold', color: item.solved ? '#2b8a3e' : '#1f2937' }}>
-                            {item.targetWord}
-                          </span>
-                          <span style={{ marginLeft: '0.3rem', fontSize: '0.75rem', color: '#6b7280' }}>
-                            (Acak: <strong style={{ color: '#2563eb', textTransform: 'uppercase' }}>{item.scrambledWord}</strong>)
-                          </span>
-                        </div>
-                        <div>
-                          {item.solved ? (
-                            <span style={{ fontSize: '0.75rem', color: '#2b8a3e', fontWeight: 'bold' }}>
-                              ✅ {item.winner?.nickname || 'Tertebak'}
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 'bold' }}>
-                              ⏳ Belum
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* LIVE LEADERBOARD PREVIEWS */}
-              <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '0.8rem' }}>
-                {gameState.mode === 'longwordle' ? (
-                  /* LONG WORDLE LEADERBOARD PREVIEW */
-                  <div style={{ flex: 1, padding: '0.7rem', background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: '8px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                      <strong style={{ color: '#6d28d9', fontSize: '0.82rem' }}>🟪 Top Long Wordle:</strong>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#7c3aed' }}>
-                        {gameState.longWordleLeaderboard?.length || 0} Pemain
-                      </span>
-                    </div>
-                    {(gameState.longWordleLeaderboard || []).length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', maxHeight: '130px', overflowY: 'auto' }}>
-                        {(gameState.longWordleLeaderboard || []).slice(0, 5).map((p, idx) => (
-                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.75rem' }}>
-                            <span style={{ fontWeight: 'bold' }}>{idx === 0 ? '🥇' : `#${idx+1}`} {p.nickname}</span>
-                            <span style={{ color: '#7c3aed', fontWeight: 'bold' }}>{p.points} Pts</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p style={{ fontSize: '0.75rem', color: '#6d28d9', margin: 0 }}>Belum ada pemenang.</p>
-                    )}
-                  </div>
-                ) : gameState.mode === 'longanagram' ? (
-                  /* LONG ANAGRAM LEADERBOARD PREVIEW */
-                  <div style={{ flex: 1, padding: '0.7rem', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '8px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                      <strong style={{ color: '#4338ca', fontSize: '0.82rem' }}>🧩 Top Long Anagram:</strong>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#4f46e5' }}>
-                        {gameState.longAnagramLeaderboard?.length || 0} Pemain
-                      </span>
-                    </div>
-                    {(gameState.longAnagramLeaderboard || []).length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', maxHeight: '130px', overflowY: 'auto' }}>
-                        {(gameState.longAnagramLeaderboard || []).slice(0, 5).map((p, idx) => (
-                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.75rem' }}>
-                            <span style={{ fontWeight: 'bold' }}>{idx === 0 ? '🥇' : `#${idx+1}`} {p.nickname}</span>
-                            <span style={{ color: '#4f46e5', fontWeight: 'bold' }}>{p.points} Pts</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p style={{ fontSize: '0.75rem', color: '#4338ca', margin: 0 }}>Belum ada pemenang.</p>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    {/* WORDLE LEADERBOARD PREVIEW */}
-                    <div style={{ flex: 1, padding: '0.7rem', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                        <strong style={{ color: '#166534', fontSize: '0.82rem' }}>🟩 Top Wordle:</strong>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#15803d' }}>
-                          {gameState.wordleLeaderboard?.length || 0} Pemain
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#166534' }}>📝 Wordle</span>
+                        <span style={{ fontSize: '0.7rem', fontWeight: '800', color: isActive ? '#16a34a' : '#64748b' }}>
+                          {isActive ? (gameState.wordleStatus === 'won' ? '✅ Selesai' : '🟢 Aktif') : '⚪ Nonaktif'}
                         </span>
                       </div>
-                      {(gameState.wordleLeaderboard || []).length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', maxHeight: '130px', overflowY: 'auto' }}>
-                          {(gameState.wordleLeaderboard || []).slice(0, 5).map((p, idx) => (
-                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.75rem' }}>
-                              <span style={{ fontWeight: 'bold' }}>{idx === 0 ? '🥇' : `#${idx+1}`} {p.nickname}</span>
-                              <span style={{ color: '#15803d', fontWeight: 'bold' }}>{p.points} Pts</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p style={{ fontSize: '0.75rem', color: '#166534', margin: 0 }}>Belum ada pemenang.</p>
-                      )}
+                      {isActive ? (
+                        <>
+                          <p style={{ fontSize: '0.78rem', margin: '0.1rem 0' }}>Kata Target: <span style={{ textTransform: 'uppercase', fontWeight: 'bold', color: '#15803d' }}>{gameState.targetWord}</span> ({gameState.wordLength || 5}H)</p>
+                          <p style={{ fontSize: '0.78rem', margin: '0.1rem 0' }}>Tebakan: <strong>{gameState.guesses?.length || 0}</strong></p>
+                          {gameState.wordleWinner && <p style={{ fontSize: '0.75rem', margin: '0.1rem 0', color: '#166534' }}>Winner: <strong>{gameState.wordleWinner.nickname}</strong></p>}
+                        </>
+                      ) : <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>Tidak aktif</p>}
                     </div>
+                  );
+                })()}
 
-                    {/* ANAGRAM LEADERBOARD PREVIEW */}
-                    <div style={{ flex: 1, padding: '0.7rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                        <strong style={{ color: '#1e40af', fontSize: '0.82rem' }}>🟦 Top Anagram:</strong>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#1d4ed8' }}>
-                          {gameState.anagramLeaderboard?.length || 0} Pemain
+                {/* 2. ANAGRAM STATUS */}
+                {(() => {
+                  const isActive = gameState.mode === 'anagram' || gameState.mode === 'dual';
+                  return (
+                    <div style={{ 
+                      padding: '0.6rem', 
+                      background: isActive ? '#eff6ff' : '#f8fafc', 
+                      border: isActive ? '1px solid #bfdbfe' : '1px solid #e2e8f0', 
+                      borderRadius: '6px',
+                      opacity: isActive ? 1 : 0.6
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#1e40af' }}>🟦 Anagram</span>
+                        <span style={{ fontSize: '0.7rem', fontWeight: '800', color: isActive ? '#2563eb' : '#64748b' }}>
+                          {isActive ? (gameState.anagramStatus === 'won' ? '✅ Selesai' : '🟢 Aktif') : '⚪ Nonaktif'}
                         </span>
                       </div>
-                      {(gameState.anagramLeaderboard || []).length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', maxHeight: '130px', overflowY: 'auto' }}>
-                          {(gameState.anagramLeaderboard || []).slice(0, 5).map((p, idx) => (
-                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.75rem' }}>
-                              <span style={{ fontWeight: 'bold' }}>{idx === 0 ? '🥇' : `#${idx+1}`} {p.nickname}</span>
-                              <span style={{ color: '#1d4ed8', fontWeight: 'bold' }}>{p.points} Pts</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p style={{ fontSize: '0.75rem', color: '#1e40af', margin: 0 }}>Belum ada pemenang.</p>
-                      )}
+                      {isActive ? (
+                        <>
+                          <p style={{ fontSize: '0.78rem', margin: '0.1rem 0' }}>Acak: <strong style={{ color: '#2563eb', textTransform: 'uppercase' }}>{gameState.scrambledWord}</strong></p>
+                          <p style={{ fontSize: '0.78rem', margin: '0.1rem 0' }}>Tertebak: <strong>{gameState.anagramWords?.filter(w => w.solved).length || 0} / {gameState.anagramWords?.length || 0}</strong></p>
+                        </>
+                      ) : <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>Tidak aktif</p>}
                     </div>
-                  </>
-                )}
+                  );
+                })()}
+
+                {/* 3. LONG WORDLE STATUS */}
+                {(() => {
+                  const isActive = gameState.mode === 'longwordle';
+                  return (
+                    <div style={{ 
+                      padding: '0.6rem', 
+                      background: isActive ? '#faf5ff' : '#f8fafc', 
+                      border: isActive ? '1px solid #e9d5ff' : '1px solid #e2e8f0', 
+                      borderRadius: '6px',
+                      opacity: isActive ? 1 : 0.6
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#6d28d9' }}>✨ Long Wordle</span>
+                        <span style={{ fontSize: '0.7rem', fontWeight: '800', color: isActive ? '#7c3aed' : '#64748b' }}>
+                          {isActive ? (gameState.longWordleStatus === 'won' ? '✅ Selesai' : '🟢 Aktif') : '⚪ Nonaktif'}
+                        </span>
+                      </div>
+                      {isActive ? (
+                        <>
+                          <p style={{ fontSize: '0.78rem', margin: '0.1rem 0' }}>Kata Target: <span style={{ textTransform: 'uppercase', fontWeight: 'bold', color: '#7c3aed' }}>{gameState.longWordleTargetWord}</span> ({gameState.longWordLength || 10}H)</p>
+                          <p style={{ fontSize: '0.78rem', margin: '0.1rem 0' }}>Tebakan: <strong>{gameState.longWordleGuesses?.length || 0}</strong></p>
+                          {gameState.longWordleWinner && <p style={{ fontSize: '0.75rem', margin: '0.1rem 0', color: '#7c3aed' }}>Winner: <strong>{gameState.longWordleWinner.nickname}</strong></p>}
+                        </>
+                      ) : <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>Tidak aktif</p>}
+                    </div>
+                  );
+                })()}
+
+                {/* 4. LONG ANAGRAM STATUS */}
+                {(() => {
+                  const isActive = gameState.mode === 'longanagram';
+                  return (
+                    <div style={{ 
+                      padding: '0.6rem', 
+                      background: isActive ? '#eef2ff' : '#f8fafc', 
+                      border: isActive ? '1px solid #c7d2fe' : '1px solid #e2e8f0', 
+                      borderRadius: '6px',
+                      opacity: isActive ? 1 : 0.6
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#4338ca' }}>🧩 Long Anagram</span>
+                        <span style={{ fontSize: '0.7rem', fontWeight: '800', color: isActive ? '#4f46e5' : '#64748b' }}>
+                          {isActive ? (gameState.longAnagramStatus === 'won' ? '✅ Selesai' : '🟢 Aktif') : '⚪ Nonaktif'}
+                        </span>
+                      </div>
+                      {isActive ? (
+                        <>
+                          <p style={{ fontSize: '0.78rem', margin: '0.1rem 0' }}>Tertebak: <strong>{gameState.longAnagramWords?.filter(w => w.solved).length || 0} / {gameState.longAnagramWords?.length || 0}</strong></p>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.2rem', marginTop: '0.2rem' }}>
+                            {(gameState.longAnagramWords || []).map((w, i) => (
+                              <span key={i} style={{ 
+                                fontSize: '0.7rem', 
+                                padding: '0.1rem 0.3rem', 
+                                background: w.solved ? '#d1fae5' : '#f1f5f9', 
+                                color: w.solved ? '#065f46' : '#334155',
+                                borderRadius: '3px',
+                                fontWeight: '700',
+                                textTransform: 'uppercase'
+                              }}>
+                                {w.solved ? w.targetWord : w.scrambledWord}
+                              </span>
+                            ))}
+                          </div>
+                        </>
+                      ) : <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>Tidak aktif</p>}
+                    </div>
+                  );
+                })()}
+
               </div>
 
-              {/* POOL TRACKING PROGRESS */}
-              <div style={{ padding: '0.6rem 0.8rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#475569' }}>
-                    📚 Pool Kata Digunakan:
+              {/* 2X2 LEADERBOARD PREVIEWS GRID */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.6rem', marginTop: '0.4rem' }}>
+                
+                {/* 1. WORDLE LEADERBOARD */}
+                <div style={{ padding: '0.6rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                    <strong style={{ color: '#166534', fontSize: '0.78rem' }}>📝 Top Wordle:</strong>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{gameState.wordleLeaderboard?.length || 0} Players</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', maxHeight: '90px', overflowY: 'auto' }}>
+                    {(gameState.wordleLeaderboard || []).slice(0, 3).map((p, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', background: 'white', padding: '0.15rem 0.3rem', borderRadius: '3px', fontSize: '0.72rem' }}>
+                        <span>#{idx+1} {p.nickname}</span>
+                        <span style={{ fontWeight: 'bold', color: '#16a34a' }}>{p.points} Pts</span>
+                      </div>
+                    ))}
+                    {(gameState.wordleLeaderboard || []).length === 0 && <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Belum ada data</span>}
+                  </div>
+                </div>
+
+                {/* 2. ANAGRAM LEADERBOARD */}
+                <div style={{ padding: '0.6rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                    <strong style={{ color: '#1e40af', fontSize: '0.78rem' }}>🟦 Top Anagram:</strong>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{gameState.anagramLeaderboard?.length || 0} Players</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', maxHeight: '90px', overflowY: 'auto' }}>
+                    {(gameState.anagramLeaderboard || []).slice(0, 3).map((p, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', background: 'white', padding: '0.15rem 0.3rem', borderRadius: '3px', fontSize: '0.72rem' }}>
+                        <span>#{idx+1} {p.nickname}</span>
+                        <span style={{ fontWeight: 'bold', color: '#2563eb' }}>{p.points} Pts</span>
+                      </div>
+                    ))}
+                    {(gameState.anagramLeaderboard || []).length === 0 && <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Belum ada data</span>}
+                  </div>
+                </div>
+
+                {/* 3. LONG WORDLE LEADERBOARD */}
+                <div style={{ padding: '0.6rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                    <strong style={{ color: '#6d28d9', fontSize: '0.78rem' }}>✨ Top Long Wordle:</strong>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{gameState.longWordleLeaderboard?.length || 0} Players</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', maxHeight: '90px', overflowY: 'auto' }}>
+                    {(gameState.longWordleLeaderboard || []).slice(0, 3).map((p, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', background: 'white', padding: '0.15rem 0.3rem', borderRadius: '3px', fontSize: '0.72rem' }}>
+                        <span>#{idx+1} {p.nickname}</span>
+                        <span style={{ fontWeight: 'bold', color: '#7c3aed' }}>{p.points} Pts</span>
+                      </div>
+                    ))}
+                    {(gameState.longWordleLeaderboard || []).length === 0 && <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Belum ada data</span>}
+                  </div>
+                </div>
+
+                {/* 4. LONG ANAGRAM LEADERBOARD */}
+                <div style={{ padding: '0.6rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                    <strong style={{ color: '#4338ca', fontSize: '0.78rem' }}>🧩 Top Long Anagram:</strong>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{gameState.longAnagramLeaderboard?.length || 0} Players</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', maxHeight: '90px', overflowY: 'auto' }}>
+                    {(gameState.longAnagramLeaderboard || []).slice(0, 3).map((p, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', background: 'white', padding: '0.15rem 0.3rem', borderRadius: '3px', fontSize: '0.72rem' }}>
+                        <span>#{idx+1} {p.nickname}</span>
+                        <span style={{ fontWeight: 'bold', color: '#4f46e5' }}>{p.points} Pts</span>
+                      </div>
+                    ))}
+                    {(gameState.longAnagramLeaderboard || []).length === 0 && <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Belum ada data</span>}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* POOL TRACKING PROGRESS (COMPACT) */}
+              <div style={{ padding: '0.5rem 0.7rem', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', marginTop: '0.2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569' }}>
+                    📚 Pool Kata Terpakai:
                   </span>
-                  <span style={{ fontSize: '0.8rem', fontWeight: '800', color: (gameState.mode === 'longwordle' || gameState.mode === 'longanagram') ? '#7c3aed' : '#2563eb' }}>
-                    {(gameState.mode === 'longwordle' || gameState.mode === 'longanagram') ? `${gameState.longPoolPlayed || 0} / ${gameState.longPoolTotal || 4420}` : `${gameState.poolPlayed || 0} / ${gameState.poolTotal || 1958}`} Kata
+                  <span style={{ fontSize: '0.75rem', fontWeight: '800', color: (gameState.mode === 'longwordle' || gameState.mode === 'longanagram') ? '#7c3aed' : '#2563eb' }}>
+                    {(gameState.mode === 'longwordle' || gameState.mode === 'longanagram') ? `Long: ${gameState.longPoolPlayed || 0} / ${gameState.longPoolTotal || 4420}` : `Standard: ${gameState.poolPlayed || 0} / ${gameState.poolTotal || 1958}`} Kata
                   </span>
                 </div>
                 <div style={{ width: '100%', height: '4px', backgroundColor: '#e2e8f0', borderRadius: '2px', overflow: 'hidden' }}>
@@ -1234,14 +1200,13 @@ export default function AdminDashboard() {
                     transition: 'width 0.3s ease'
                   }} />
                 </div>
-                <p style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.35rem', marginBottom: 0 }}>
-                  ✨ <em>Kata target tidak akan pernah diulang sampai seluruh pool kata habis.</em>
-                </p>
               </div>
 
             </div>
           ) : (
-            <p>Masukkan Kode Kamar dan hubungkan ke OBS untuk melihat status permainan.</p>
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#666', border: '2px dashed #ccc', borderRadius: '8px' }}>
+              <p>Menunggu data dari Overlay... Pastikan setidaknya satu OBS Browser Source telah terbuka dan terhubung.</p>
+            </div>
           )}
         </div>
       </div>
