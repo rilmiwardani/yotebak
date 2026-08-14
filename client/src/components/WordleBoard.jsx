@@ -47,7 +47,7 @@ export default function WordleBoard({ gameState }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <span style={{ fontSize: '1.2rem' }}>🟩</span>
           <h2 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#1f2937', margin: 0 }}>
-            Tebak 5 Huruf
+            Tebak {wordLength} Huruf
           </h2>
         </div>
 

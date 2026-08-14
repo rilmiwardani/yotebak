@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import Peer from 'peerjs';
 import WordleBoard from '../components/WordleBoard';
 import AnagramBoard from '../components/AnagramBoard';
+import LongWordleBoard from '../components/LongWordleBoard';
+import LongAnagramBoard from '../components/LongAnagramBoard';
 import LeaderboardBoard from '../components/LeaderboardBoard';
 import WinCard from '../components/WinCard';
 import TimeoutCard from '../components/TimeoutCard';
 
 export default function Overlay() {
-  // Persistence helpers for Wordle & Anagram Leaderboards
+  // Persistence helpers for Wordle, Anagram, Long Wordle, & Long Anagram Leaderboards
   const loadWordleLeaderboard = () => {
     try {
       const saved = localStorage.getItem('yotebak_leaderboard_wordle');
@@ -42,6 +44,40 @@ export default function Overlay() {
     } catch (_) {}
   };
 
+  const loadLongWordleLeaderboard = () => {
+    try {
+      const saved = localStorage.getItem('yotebak_leaderboard_longwordle');
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr)) return arr;
+      }
+    } catch (_) {}
+    return [];
+  };
+
+  const saveLongWordleLeaderboard = (data) => {
+    try {
+      localStorage.setItem('yotebak_leaderboard_longwordle', JSON.stringify(data));
+    } catch (_) {}
+  };
+
+  const loadLongAnagramLeaderboard = () => {
+    try {
+      const saved = localStorage.getItem('yotebak_leaderboard_longanagram');
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr)) return arr;
+      }
+    } catch (_) {}
+    return [];
+  };
+
+  const saveLongAnagramLeaderboard = (data) => {
+    try {
+      localStorage.setItem('yotebak_leaderboard_longanagram', JSON.stringify(data));
+    } catch (_) {}
+  };
+
   const loadMaxLeaderboardRows = () => {
     try {
       const saved = localStorage.getItem('yotebak_max_leaderboard_rows');
@@ -56,9 +92,9 @@ export default function Overlay() {
     } catch (_) {}
   };
 
-  // Game state (Wordle & Anagram & Dual Mode & 2 Separate Leaderboards)
+  // Game state (Wordle & Anagram & Long Wordle & Long Anagram & Separate Leaderboards)
   const [gameState, setGameState] = useState({
-    mode: 'dual', // 'wordle' | 'anagram' | 'dual'
+    mode: 'dual', // 'wordle' | 'anagram' | 'dual' | 'longwordle' | 'longanagram'
     // Wordle state
     targetWord: 'buku',
     guesses: [],
@@ -71,9 +107,23 @@ export default function Overlay() {
     anagramStatus: 'playing', // 'playing' | 'won'
     anagramWinner: null,
     anagramRows: 3,
-    // Two Separate Leaderboards
+    // Long Wordle state
+    longWordleTargetWord: 'abstinensi',
+    longWordleGuesses: [],
+    longWordleStatus: 'playing', // 'playing' | 'won'
+    longWordleWinner: null,
+    longWordLength: 10,
+    longWordleMaxRows: 6,
+    // Long Anagram state
+    longAnagramWords: [],
+    longAnagramStatus: 'playing', // 'playing' | 'won'
+    longAnagramWinner: null,
+    longAnagramRows: 3,
+    // Separate Leaderboards
     wordleLeaderboard: loadWordleLeaderboard(),
     anagramLeaderboard: loadAnagramLeaderboard(),
+    longWordleLeaderboard: loadLongWordleLeaderboard(),
+    longAnagramLeaderboard: loadLongAnagramLeaderboard(),
     maxLeaderboardRows: loadMaxLeaderboardRows(),
     // Status fallback
     status: 'playing',
@@ -82,27 +132,37 @@ export default function Overlay() {
 
   const [wordleWinState, setWordleWinState] = useState({ show: false, winner: null, word: '' });
   const [anagramWinState, setAnagramWinState] = useState({ show: false, winner: null, word: '' });
+  const [longWordleWinState, setLongWordleWinState] = useState({ show: false, winner: null, word: '' });
+  const [longAnagramWinState, setLongAnagramWinState] = useState({ show: false, winner: null, word: '' });
   const [timeoutState, setTimeoutState] = useState({ show: false, word: '' });
 
   // TikFinity connection status
   const tikFinityConnectedRef = useRef(false);
 
-  // Auto-restart: timestamps for Wordle and Anagram
+  // Auto-restart: timestamps for Wordle, Anagram, Long Wordle, and Long Anagram
   const RESTART_DELAY_MS = 10000;
   const wordleEndedAtRef = useRef(null);
   const anagramEndedAtRef = useRef(null);
+  const longWordleEndedAtRef = useRef(null);
+  const longAnagramEndedAtRef = useRef(null);
 
-  // Word databases
   const targetWordsRef = useRef([]);
   const validWordsSetRef = useRef(new Set());
   const playedWordsRef = useRef(new Set());
+  const currentWordLengthRef = useRef(5);
+
+  const longWordlistDataRef = useRef({});
+  const targetLongWordsRef = useRef([]);
+  const validLongWordsSetRef = useRef(new Set());
+  const playedLongWordsRef = useRef(new Set());
+  const currentLongWordLengthRef = useRef(10);
 
   // WebRTC refs & Local Broadcast Channel for seamless multi-overlay sync
   const peerRef = useRef(null);
   const connectionsRef = useRef([]);
   const broadcastChannelRef = useRef(null);
   const [roomCode, setRoomCode] = useState('');
-  const [viewType, setViewType] = useState('all'); // 'all' | 'wordle' | 'anagram' | 'leaderboard' | 'leaderboard-wordle' | 'leaderboard-anagram'
+  const [viewType, setViewType] = useState('all'); // 'all' | 'wordle' | 'anagram' | 'longwordle' | 'longanagram' | 'leaderboard'
 
   // Keep refs of gameState to avoid closure stale state
   const gameStateRef = useRef(gameState);
@@ -172,10 +232,76 @@ export default function Overlay() {
     return list;
   };
 
+  // Record win helper for Long Wordle
+  const recordLongWordleWin = (user, currentState) => {
+    if (!user || !user.nickname || user.nickname === 'Host' || user.nickname === 'Last Word' || user.nickname === 'Kata Lalu') {
+      return currentState.longWordleLeaderboard || [];
+    }
+
+    const currentList = currentState.longWordleLeaderboard || loadLongWordleLeaderboard();
+    const list = [...currentList];
+    const cleanNick = user.nickname.trim();
+    const existingIdx = list.findIndex(p => (p.nickname || '').toLowerCase() === cleanNick.toLowerCase());
+
+    if (existingIdx !== -1) {
+      list[existingIdx] = {
+        ...list[existingIdx],
+        points: (list[existingIdx].points || 0) + 1,
+        profilePic: user.profilePic || list[existingIdx].profilePic,
+        lastWinAt: Date.now()
+      };
+    } else {
+      list.push({
+        nickname: cleanNick,
+        profilePic: user.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanNick)}&background=7c3aed&color=fff`,
+        points: 1,
+        lastWinAt: Date.now()
+      });
+    }
+
+    list.sort((a, b) => (b.points - a.points) || (b.lastWinAt - a.lastWinAt));
+    saveLongWordleLeaderboard(list);
+    return list;
+  };
+
+  // Record win helper for Long Anagram
+  const recordLongAnagramWin = (user, currentState) => {
+    if (!user || !user.nickname || user.nickname === 'Host' || user.nickname === 'Last Word' || user.nickname === 'Kata Lalu') {
+      return currentState.longAnagramLeaderboard || [];
+    }
+
+    const currentList = currentState.longAnagramLeaderboard || loadLongAnagramLeaderboard();
+    const list = [...currentList];
+    const cleanNick = user.nickname.trim();
+    const existingIdx = list.findIndex(p => (p.nickname || '').toLowerCase() === cleanNick.toLowerCase());
+
+    if (existingIdx !== -1) {
+      list[existingIdx] = {
+        ...list[existingIdx],
+        points: (list[existingIdx].points || 0) + 1,
+        profilePic: user.profilePic || list[existingIdx].profilePic,
+        lastWinAt: Date.now()
+      };
+    } else {
+      list.push({
+        nickname: cleanNick,
+        profilePic: user.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanNick)}&background=4f46e5&color=fff`,
+        points: 1,
+        lastWinAt: Date.now()
+      });
+    }
+
+    list.sort((a, b) => (b.points - a.points) || (b.lastWinAt - a.lastWinAt));
+    saveLongAnagramLeaderboard(list);
+    return list;
+  };
+
   // Reset leaderboard helper
   const handleResetLeaderboard = (target = 'all') => {
     let newWordle = gameStateRef.current?.wordleLeaderboard || [];
     let newAnagram = gameStateRef.current?.anagramLeaderboard || [];
+    let newLongWordle = gameStateRef.current?.longWordleLeaderboard || [];
+    let newLongAnagram = gameStateRef.current?.longAnagramLeaderboard || [];
 
     if (target === 'wordle' || target === 'all') {
       saveWordleLeaderboard([]);
@@ -185,12 +311,22 @@ export default function Overlay() {
       saveAnagramLeaderboard([]);
       newAnagram = [];
     }
+    if (target === 'longwordle' || target === 'all') {
+      saveLongWordleLeaderboard([]);
+      newLongWordle = [];
+    }
+    if (target === 'longanagram' || target === 'all') {
+      saveLongAnagramLeaderboard([]);
+      newLongAnagram = [];
+    }
 
     setGameState(prev => {
       const updated = { 
         ...prev, 
         wordleLeaderboard: newWordle, 
-        anagramLeaderboard: newAnagram 
+        anagramLeaderboard: newAnagram,
+        longWordleLeaderboard: newLongWordle,
+        longAnagramLeaderboard: newLongAnagram
       };
       gameStateRef.current = updated;
       broadcastState(updated);
@@ -231,6 +367,37 @@ export default function Overlay() {
       setAnagramWinState(prev => prev.show ? { ...prev, show: false } : prev);
     }
 
+    // Long Wordle end tracking & Win Screen Trigger
+    if (gameState.longWordleStatus === 'won') {
+      if (!longWordleEndedAtRef.current) {
+        longWordleEndedAtRef.current = Date.now();
+        setLongWordleWinState({
+          show: true,
+          winner: gameState.longWordleWinner,
+          word: gameState.longWordleTargetWord
+        });
+      }
+    } else {
+      longWordleEndedAtRef.current = null;
+      setLongWordleWinState(prev => prev.show ? { ...prev, show: false } : prev);
+    }
+
+    // Long Anagram end tracking & Win Screen Trigger
+    if (gameState.longAnagramStatus === 'won') {
+      if (!longAnagramEndedAtRef.current) {
+        longAnagramEndedAtRef.current = Date.now();
+        const allTargetWords = (gameState.longAnagramWords || []).map(w => w.targetWord).join(', ');
+        setLongAnagramWinState({
+          show: true,
+          winner: gameState.longAnagramWinner,
+          word: allTargetWords
+        });
+      }
+    } else {
+      longAnagramEndedAtRef.current = null;
+      setLongAnagramWinState(prev => prev.show ? { ...prev, show: false } : prev);
+    }
+
     const checkRestart = setInterval(() => {
       const now = Date.now();
 
@@ -245,10 +412,22 @@ export default function Overlay() {
         anagramEndedAtRef.current = null;
         restartAnagramPart();
       }
+
+      // Long Wordle restarts independently
+      if (longWordleEndedAtRef.current && (now - longWordleEndedAtRef.current >= RESTART_DELAY_MS)) {
+        longWordleEndedAtRef.current = null;
+        restartLongWordlePart();
+      }
+
+      // Long Anagram restarts independently
+      if (longAnagramEndedAtRef.current && (now - longAnagramEndedAtRef.current >= RESTART_DELAY_MS)) {
+        longAnagramEndedAtRef.current = null;
+        restartLongAnagramPart();
+      }
     }, 1000);
 
     return () => clearInterval(checkRestart);
-  }, [gameState.wordleStatus, gameState.anagramStatus, gameState.wordleWinner, gameState.anagramWinner, gameState.targetWord, gameState.anagramWords]);
+  }, [gameState.wordleStatus, gameState.anagramStatus, gameState.longWordleStatus, gameState.longAnagramStatus, gameState.wordleWinner, gameState.anagramWinner, gameState.longWordleWinner, gameState.longAnagramWinner, gameState.targetWord, gameState.anagramWords, gameState.longWordleTargetWord, gameState.longAnagramWords]);
 
   // Persistence helpers for played words pool
   const loadPlayedWords = () => {
@@ -270,57 +449,111 @@ export default function Overlay() {
     } catch (_) {}
   };
 
+  const loadWords = async (length = 5) => {
+    try {
+      const suffix = length === 5 ? '' : `_${length}`;
+      const targetRes = await fetch(`/target_words_id${suffix}.txt`);
+      const targetText = await targetRes.text();
+      const targets = targetText.split('\n')
+        .map(w => w.trim().toLowerCase())
+        .filter(w => w.length === length);
+      targetWordsRef.current = targets;
+
+      const validRes = await fetch(`/valid_words_id${suffix}.txt`);
+      const validText = await validRes.text();
+      const valids = validText.split('\n')
+        .map(w => w.trim().toLowerCase())
+        .filter(w => w.length === length);
+      
+      const validSet = new Set(valids);
+      targets.forEach(w => validSet.add(w));
+      validWordsSetRef.current = validSet;
+
+      playedWordsRef.current = loadPlayedWords();
+      currentWordLengthRef.current = length;
+      console.log(`Loaded ${targets.length} target words (length ${length}) and ${validSet.size} valid words.`);
+      return targets;
+    } catch (err) {
+      console.error("Failed to load word files:", err);
+      return [];
+    }
+  };
+
+  const loadLongWords = async (length = 10) => {
+    try {
+      let data = longWordlistDataRef.current;
+      if (!data || Object.keys(data).length === 0) {
+        const res = await fetch('/wordlist.json');
+        data = await res.json();
+        longWordlistDataRef.current = data;
+      }
+
+      const validSet = new Set();
+      Object.values(data).forEach(arr => {
+        if (Array.isArray(arr)) {
+          arr.forEach(w => validSet.add(w.trim().toLowerCase()));
+        }
+      });
+      validLongWordsSetRef.current = validSet;
+
+      let targetLen = length;
+      if (targetLen === 'random' || targetLen === 0) {
+        const availableLens = [10, 11, 12, 13, 14, 15];
+        targetLen = availableLens[Math.floor(Math.random() * availableLens.length)];
+      }
+
+      const key = String(targetLen);
+      const targets = (data[key] || []).map(w => w.trim().toLowerCase());
+      targetLongWordsRef.current = targets;
+      playedLongWordsRef.current = loadPlayedLongWords();
+      currentLongWordLengthRef.current = targetLen;
+
+      console.log(`Loaded ${targets.length} Long Wordle target words (length ${targetLen}) and ${validSet.size} total valid long words.`);
+      return targets;
+    } catch (err) {
+      console.error("Failed to load wordlist.json:", err);
+      return [];
+    }
+  };
+
   // 1. Fetch word list files and synchronize initial game state
   useEffect(() => {
     document.body.classList.add('bg-magenta');
     const query = new URLSearchParams(window.location.search);
     const room = query.get('room') || 'default_room';
 
-    const loadWords = async () => {
+    const initialize = async () => {
+      let initialLength = 5;
+      let initialLongLength = 10;
+      let existingState = null;
       try {
-        const targetRes = await fetch('/target_words_id.txt');
-        const targetText = await targetRes.text();
-        const targets = targetText.split('\n')
-          .map(w => w.trim().toLowerCase())
-          .filter(w => w.length === 5);
-        targetWordsRef.current = targets;
-
-        const validRes = await fetch('/valid_words_id.txt');
-        const validText = await validRes.text();
-        const valids = validText.split('\n')
-          .map(w => w.trim().toLowerCase())
-          .filter(w => w.length === 5);
-        
-        const validSet = new Set(valids);
-        targets.forEach(w => validSet.add(w));
-        validWordsSetRef.current = validSet;
-
-        playedWordsRef.current = loadPlayedWords();
-        console.log(`Loaded ${targets.length} target words (${playedWordsRef.current.size} previously played) and ${validSet.size} valid words.`);
-        
-        // Synchronize with existing active game state if one already exists in localStorage
-        let existingState = null;
-        try {
-          const saved = localStorage.getItem(`yotebak_active_game_${room}`);
-          if (saved) {
-            existingState = JSON.parse(saved);
+        const saved = localStorage.getItem(`yotebak_active_game_${room}`);
+        if (saved) {
+          existingState = JSON.parse(saved);
+          if (existingState && existingState.wordLength) {
+            initialLength = existingState.wordLength;
+          } else if (existingState && existingState.targetWord) {
+            initialLength = existingState.targetWord.length;
           }
-        } catch (_) {}
-
-        if (existingState && existingState.targetWord && existingState.anagramWords && existingState.anagramWords.length > 0) {
-          console.log("Synchronized with active room game state:", existingState.targetWord);
-          gameStateRef.current = existingState;
-          setGameState(existingState);
-        } else {
-          // Initialize fresh dual game
-          initGame('dual', null, targets);
+          if (existingState && existingState.longWordLength) {
+            initialLongLength = existingState.longWordLength;
+          }
         }
-      } catch (err) {
-        console.error("Failed to load word files:", err);
+      } catch (_) {}
+
+      const targets = await loadWords(initialLength);
+      const longTargets = await loadLongWords(initialLongLength);
+
+      if (existingState && existingState.targetWord && existingState.anagramWords && existingState.anagramWords.length > 0) {
+        console.log("Synchronized with active room game state:", existingState.targetWord);
+        gameStateRef.current = { ...existingState, wordLength: initialLength, longWordLength: initialLongLength };
+        setGameState(gameStateRef.current);
+      } else {
+        initGame('dual', null, targets, null, initialLength);
       }
     };
 
-    loadWords();
+    initialize();
 
     return () => {
       document.body.classList.remove('bg-magenta');
@@ -352,8 +585,12 @@ export default function Overlay() {
     let viewSuffix = '';
     if (view === 'wordle') viewSuffix = '-wordle';
     else if (view === 'anagram') viewSuffix = '-anagram';
+    else if (view === 'longwordle') viewSuffix = '-longwordle';
+    else if (view === 'longanagram') viewSuffix = '-longanagram';
     else if (view === 'leaderboard-wordle' || view === 'leaderboard_wordle') viewSuffix = '-leaderboard-wordle';
     else if (view === 'leaderboard-anagram' || view === 'leaderboard_anagram') viewSuffix = '-leaderboard-anagram';
+    else if (view === 'leaderboard-longwordle' || view === 'leaderboard_longwordle') viewSuffix = '-leaderboard-longwordle';
+    else if (view === 'leaderboard-longanagram' || view === 'leaderboard_longanagram') viewSuffix = '-leaderboard-longanagram';
     else if (view === 'leaderboard' || view === 'leaderboards') viewSuffix = '-leaderboard';
 
     const peerId = `overlay-game-${room}${viewSuffix}`;
@@ -374,9 +611,53 @@ export default function Overlay() {
         conn.send({ type: 'tikFinityStatus', connected: tikFinityConnectedRef.current });
       });
 
-      conn.on('data', (data) => {
+      conn.on('data', async (data) => {
         if (data.type === 'startGame') {
-          initGame(data.mode, data.word, null, data.anagramRows);
+          if (data.mode === 'longwordle') {
+            const length = data.longWordLength || 10;
+            let targets = targetLongWordsRef.current;
+            if (length !== currentLongWordLengthRef.current || !targets || !targets.length) {
+              targets = await loadLongWords(length);
+            }
+            initGame('longwordle', data.word, targets, null, length);
+          } else if (data.mode === 'longanagram') {
+            const length = data.longWordLength || 10;
+            let targets = targetLongWordsRef.current;
+            if (length !== currentLongWordLengthRef.current || !targets || !targets.length) {
+              targets = await loadLongWords(length);
+            }
+            initGame('longanagram', data.word, targets, data.longAnagramRows || data.anagramRows, length);
+          } else {
+            const length = data.wordLength || 5;
+            let targets = targetWordsRef.current;
+            if (length !== currentWordLengthRef.current) {
+              targets = await loadWords(length);
+            }
+            initGame(data.mode, data.word, targets, data.anagramRows, length);
+          }
+        } else if (data.type === 'updateLongWordLength') {
+          const length = data.longWordLength || 10;
+          const targets = await loadLongWords(length);
+          const currentMode = gameStateRef.current?.mode;
+          if (currentMode === 'longanagram') {
+            initGame('longanagram', null, targets, gameStateRef.current?.longAnagramRows, length);
+          } else {
+            initGame('longwordle', null, targets, null, length);
+          }
+        } else if (data.type === 'updateLongWordleMaxRows') {
+          setGameState(prev => {
+            const newState = { ...prev, longWordleMaxRows: data.maxRows };
+            gameStateRef.current = newState;
+            broadcastState(newState);
+            return newState;
+          });
+        } else if (data.type === 'updateLongAnagramRows') {
+          setGameState(prev => {
+            const newState = { ...prev, longAnagramRows: data.longAnagramRows };
+            gameStateRef.current = newState;
+            broadcastState(newState);
+            return newState;
+          });
         } else if (data.type === 'adminGuess') {
           handleChat({
             comment: data.guess,
@@ -559,10 +840,113 @@ export default function Overlay() {
     }));
   };
 
-  // Initialize Game (Wordle, Anagram, or Dual)
-  const initGame = (mode, specificWord = null, overrideTargets = null, anagramCount = null) => {
-    const targets = overrideTargets || targetWordsRef.current;
+  // Draw a guaranteed unique non-repeated target word for Long Wordle & Long Anagram
+  const drawLongTargetWord = (targets = targetLongWordsRef.current) => {
+    if (!targets || targets.length === 0) return 'abstinensi';
+
+    let available = targets.filter(w => !playedLongWordsRef.current.has(w));
+    if (available.length === 0) {
+      console.log(`[LongWordPool] Semua ${targets.length} kata telah dimainkan! Mereset pool kata dari awal.`);
+      playedLongWordsRef.current.clear();
+      savePlayedLongWords(playedLongWordsRef.current);
+      available = [...targets];
+    }
+
+    const picked = available[Math.floor(Math.random() * available.length)];
+    playedLongWordsRef.current.add(picked);
+    savePlayedLongWords(playedLongWordsRef.current);
+
+    console.log(`[LongWordPool] Kata terpilih: "${picked}" | Progres Pool: ${playedLongWordsRef.current.size} / ${targets.length} kata`);
+    return picked;
+  };
+
+  // Helper: Generate list of Long Anagram words with guaranteed non-repetition
+  const generateLongAnagramWords = (targets = targetLongWordsRef.current, count = 3) => {
+    const chosenWords = [];
+    while (chosenWords.length < count) {
+      const picked = drawLongTargetWord(targets);
+      if (!chosenWords.includes(picked)) {
+        chosenWords.push(picked);
+      }
+    }
+    return chosenWords.map((w, idx) => ({
+      id: idx + 1,
+      targetWord: w,
+      scrambledWord: scrambleWord(w),
+      solved: false,
+      winner: null,
+    }));
+  };
+
+  // Get a random hint word for Long Wordle "Last Word"
+  const getRandomLongHintWord = (targets = targetLongWordsRef.current) => {
+    if (!targets || targets.length === 0) return 'abstinensi';
+    return targets[Math.floor(Math.random() * targets.length)];
+  };
+
+  // Initialize Game (Wordle, Anagram, Dual, Long Wordle, or Long Anagram)
+  const initGame = (mode, specificWord = null, overrideTargets = null, anagramCount = null, overrideLength = null) => {
     const currentState = gameStateRef.current || {};
+    
+    if (mode === 'longwordle') {
+      const longLen = overrideLength || currentState.longWordLength || 10;
+      const targets = overrideTargets || targetLongWordsRef.current;
+      const longWord = specificWord ? specificWord.toLowerCase() : drawLongTargetWord(targets);
+      const firstGuess = getRandomLongHintWord(targets);
+
+      const newGameState = {
+        ...currentState,
+        mode: 'longwordle',
+        longWordLength: longLen,
+        longWordleTargetWord: longWord,
+        longWordleGuesses: [{
+          word: firstGuess,
+          user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=7c3aed&color=fff' }
+        }],
+        longWordleStatus: 'playing',
+        longWordleWinner: null,
+        longWordleMaxRows: currentState.longWordleMaxRows || 6,
+        longPoolPlayed: playedLongWordsRef.current.size,
+        longPoolTotal: targets.length || 4420,
+      };
+
+      gameStateRef.current = newGameState;
+      setGameState(newGameState);
+      setLongWordleWinState({ show: false, winner: null, word: '' });
+      setTimeoutState({ show: false, word: '' });
+      broadcastState(newGameState);
+      return;
+    }
+
+    if (mode === 'longanagram') {
+      const longLen = overrideLength || currentState.longWordLength || 10;
+      const targets = overrideTargets || targetLongWordsRef.current;
+      const count = anagramCount || (currentState.longAnagramRows || 3);
+      const validRows = Math.min(Math.max(Number(count) || 3, 1), 6);
+      const longAnagramList = generateLongAnagramWords(targets, validRows);
+
+      const newGameState = {
+        ...currentState,
+        mode: 'longanagram',
+        longWordLength: longLen,
+        longAnagramWords: longAnagramList,
+        longAnagramStatus: 'playing',
+        longAnagramWinner: null,
+        longAnagramRows: validRows,
+        longPoolPlayed: playedLongWordsRef.current.size,
+        longPoolTotal: targets.length || 4420,
+      };
+
+      gameStateRef.current = newGameState;
+      setGameState(newGameState);
+      setLongAnagramWinState({ show: false, winner: null, word: '' });
+      setTimeoutState({ show: false, word: '' });
+      broadcastState(newGameState);
+      return;
+    }
+
+    const targets = overrideTargets || targetWordsRef.current;
+    const wordLength = overrideLength || currentState.wordLength || 5;
     
     const oldMaxRows = currentState.maxRows || 6;
     const count = anagramCount || (currentState.anagramRows || 3);
@@ -576,7 +960,7 @@ export default function Overlay() {
       : currentState.targetWord;
 
     const lastWordleWord = currentState.targetWord;
-    const firstGuess = (lastWordleWord && lastWordleWord.length === 5) ? lastWordleWord : getRandomHintWord(targets);
+    const firstGuess = (lastWordleWord && lastWordleWord.length === wordLength) ? lastWordleWord : getRandomHintWord(targets);
 
     const wordleGuesses = isResetWordle
       ? [{ word: firstGuess, user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=4ca371&color=fff' } }]
@@ -589,6 +973,7 @@ export default function Overlay() {
     const newGameState = {
       ...currentState,
       mode: mode,
+      wordLength: wordLength,
       // Wordle fields
       targetWord: wordleWord,
       guesses: wordleGuesses,
@@ -618,15 +1003,18 @@ export default function Overlay() {
 
   // Restart strictly only Wordle section - Anagram is 100% UNTOUCHED!
   const restartWordlePart = () => {
+    const currentState = gameStateRef.current;
     const targets = targetWordsRef.current;
-    const lastWordleWord = gameStateRef.current ? gameStateRef.current.targetWord : null;
-    const newWord = drawTargetWord(targets);
-    const firstGuess = (lastWordleWord && lastWordleWord.length === 5) ? lastWordleWord : getRandomHintWord(targets);
+    const wordLength = currentState.wordLength || 5;
+
+    const wordleWord = drawTargetWord(targets);
+    const lastWordleWord = currentState.targetWord;
+    const firstGuess = (lastWordleWord && lastWordleWord.length === wordLength) ? lastWordleWord : getRandomHintWord(targets);
 
     setGameState(prev => {
       const updated = {
         ...prev,
-        targetWord: newWord,
+        targetWord: wordleWord,
         guesses: [{
           word: firstGuess,
           user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=4ca371&color=fff' }
@@ -664,31 +1052,111 @@ export default function Overlay() {
     setAnagramWinState({ show: false, winner: null, word: '' });
   };
 
+  // Restart strictly only Long Wordle section
+  const restartLongWordlePart = () => {
+    const currentState = gameStateRef.current;
+    const targets = targetLongWordsRef.current;
+    const wordLength = currentState.longWordLength || 10;
+
+    const longWord = drawLongTargetWord(targets);
+    const lastLongWord = currentState.longWordleTargetWord;
+    const firstGuess = (lastLongWord && lastLongWord.length === wordLength) ? lastLongWord : getRandomLongHintWord(targets);
+
+    setGameState(prev => {
+      const updated = {
+        ...prev,
+        longWordleTargetWord: longWord,
+        longWordleGuesses: [{
+          word: firstGuess,
+          user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=7c3aed&color=fff' }
+        }],
+        longWordleStatus: 'playing',
+        longWordleWinner: null,
+        longPoolPlayed: playedLongWordsRef.current.size,
+      };
+      gameStateRef.current = updated;
+      broadcastState(updated);
+      return updated;
+    });
+    setLongWordleWinState({ show: false, winner: null, word: '' });
+  };
+
+  // Restart strictly only Long Anagram section
+  const restartLongAnagramPart = () => {
+    const currentState = gameStateRef.current;
+    const targets = targetLongWordsRef.current;
+    const validRows = currentState?.longAnagramRows || 3;
+    const longAnagramList = generateLongAnagramWords(targets, validRows);
+
+    setGameState(prev => {
+      const updated = {
+        ...prev,
+        longAnagramWords: longAnagramList,
+        longAnagramStatus: 'playing',
+        longAnagramWinner: null,
+        longPoolPlayed: playedLongWordsRef.current.size,
+      };
+      gameStateRef.current = updated;
+      broadcastState(updated);
+      return updated;
+    });
+    setLongAnagramWinState({ show: false, winner: null, word: '' });
+  };
+
   // Sanitize helper
   const sanitize = (text) => {
     return text.replace(/[^a-zA-Z]/g, '').toLowerCase();
   };
 
-  // Extract 5-letter valid guess from chat text
+  // Extract N-letter valid guess from chat text
   const extractGuess = (chatText) => {
+    const length = currentWordLengthRef.current || 5;
     const directWord = sanitize(chatText);
-    if (directWord.length === 5 && validWordsSetRef.current.has(directWord)) {
+    if (directWord.length === length && validWordsSetRef.current.has(directWord)) {
       return directWord;
     }
 
     const words = chatText.split(/\s+/);
     for (const w of words) {
       const cleaned = sanitize(w);
-      if (cleaned.length === 5 && validWordsSetRef.current.has(cleaned)) {
+      if (cleaned.length === length && validWordsSetRef.current.has(cleaned)) {
         return cleaned;
       }
     }
 
     const compactText = sanitize(chatText);
-    if (compactText.length >= 5) {
-      for (let i = 0; i <= compactText.length - 5; i++) {
-        const sub = compactText.substring(i, i + 5);
+    if (compactText.length >= length) {
+      for (let i = 0; i <= compactText.length - length; i++) {
+        const sub = compactText.substring(i, i + length);
         if (validWordsSetRef.current.has(sub)) {
+          return sub;
+        }
+      }
+    }
+
+    return '';
+  };
+
+  // Extract Long Wordle guess from chat text
+  const extractLongWordleGuess = (chatText, length = 10) => {
+    const directWord = sanitize(chatText);
+    if (directWord.length === length && (validLongWordsSetRef.current.has(directWord) || /^[a-z]+$/.test(directWord))) {
+      return directWord;
+    }
+
+    const words = chatText.split(/\s+/);
+    for (const w of words) {
+      const cleaned = sanitize(w);
+      if (cleaned.length === length && (validLongWordsSetRef.current.has(cleaned) || /^[a-z]+$/.test(cleaned))) {
+        return cleaned;
+      }
+    }
+
+    const compactText = sanitize(chatText);
+    if (compactText.length >= length) {
+      for (let i = 0; i <= compactText.length - length; i++) {
+        const sub = compactText.substring(i, i + length);
+        if (validLongWordsSetRef.current.has(sub)) {
           return sub;
         }
       }
@@ -699,6 +1167,30 @@ export default function Overlay() {
 
   // Extract anagram answer from chat text (with TikTok bypass handling)
   const extractAnagramGuess = (chatText, targetWord) => {
+    if (chatText === targetWord) return targetWord;
+
+    const parts = chatText.split(/\s+/);
+    for (const part of parts) {
+      if (part === targetWord) return targetWord;
+      const cleaned = sanitize(part);
+      if (cleaned === targetWord) return targetWord;
+    }
+
+    const fullCleaned = sanitize(chatText);
+    if (fullCleaned === targetWord) return targetWord;
+
+    if (fullCleaned.length > targetWord.length) {
+      for (let i = 0; i <= fullCleaned.length - targetWord.length; i++) {
+        const sub = fullCleaned.substring(i, i + targetWord.length);
+        if (sub === targetWord) return targetWord;
+      }
+    }
+
+    return '';
+  };
+
+  // Extract Long Anagram answer from chat text
+  const extractLongAnagramGuess = (chatText, targetWord) => {
     if (chatText === targetWord) return targetWord;
 
     const parts = chatText.split(/\s+/);
@@ -783,13 +1275,12 @@ export default function Overlay() {
     };
   }, []);
 
-  // Handle comment event (Simultaneous routing for Dual Mode)
+  // Handle comment event (Simultaneous routing for all active modes)
   const handleChat = (data) => {
     const state = gameStateRef.current;
     const chatText = (data.comment || data.text || '').trim().toLowerCase();
     
     // Create a unique signature for this chat event to prevent double-processing in multi-overlay setups
-    // TikFinity usually sends uniqueId or msgId. We combine user, text, and an approximate time bucket (2-second window)
     const timeBucket = Math.floor(Date.now() / 2000);
     const rawNick = data.nickname || data.uniqueId || 'User';
     const chatSignature = `${rawNick}-${chatText}-${timeBucket}`;
@@ -807,8 +1298,8 @@ export default function Overlay() {
     let updatedState = { ...state };
     let stateChanged = false;
 
-    // 1. Process Anagram
-    if (state.anagramStatus !== 'won') {
+    // 1. Process Standard Anagram
+    if (state.anagramStatus !== 'won' && (state.mode === 'anagram' || state.mode === 'dual' || viewType === 'anagram')) {
       const anagramWords = state.anagramWords || [];
       let solvedWordIndex = -1;
 
@@ -868,15 +1359,11 @@ export default function Overlay() {
           anagramLeaderboard: updatedAnagramLeaderboard,
         };
         stateChanged = true;
-
-        if (allSolved) {
-          // Win screen triggered reactively via useEffect
-        }
       }
     }
 
-    // 2. Process Wordle
-    if (state.wordleStatus !== 'won') {
+    // 2. Process Standard Wordle
+    if (state.wordleStatus !== 'won' && (state.mode === 'wordle' || state.mode === 'dual' || viewType === 'wordle')) {
       const guessStr = extractGuess(chatText);
 
       if (guessStr) {
@@ -900,10 +1387,99 @@ export default function Overlay() {
           wordleWinner: wordleWinner,
         };
         stateChanged = true;
+      }
+    }
 
-        if (newWordleStatus === 'won') {
-          // Win screen triggered reactively via useEffect
+    // 3. Process Long Wordle
+    if (state.longWordleStatus !== 'won' && (state.mode === 'longwordle' || viewType === 'longwordle' || isViewAll)) {
+      const longLen = state.longWordLength || state.longWordleTargetWord?.length || 10;
+      const guessStr = extractLongWordleGuess(chatText, longLen);
+
+      if (guessStr) {
+        const newGuesses = [...(updatedState.longWordleGuesses || []), { word: guessStr, user }];
+        let newStatus = updatedState.longWordleStatus;
+        let winner = updatedState.longWordleWinner;
+
+        if (guessStr === updatedState.longWordleTargetWord) {
+          newStatus = 'won';
+          winner = user;
+
+          // Add win points to Long Wordle Leaderboard
+          const updatedLongLB = recordLongWordleWin(user, updatedState);
+          updatedState.longWordleLeaderboard = updatedLongLB;
         }
+
+        updatedState = {
+          ...updatedState,
+          longWordleGuesses: newGuesses,
+          longWordleStatus: newStatus,
+          longWordleWinner: winner,
+        };
+        stateChanged = true;
+      }
+    }
+
+    // 4. Process Long Anagram
+    if (state.longAnagramStatus !== 'won' && (state.mode === 'longanagram' || viewType === 'longanagram' || isViewAll)) {
+      const longAnagramWords = state.longAnagramWords || [];
+      let solvedWordIndex = -1;
+
+      for (let i = 0; i < longAnagramWords.length; i++) {
+        if (!longAnagramWords[i].solved) {
+          const matched = extractLongAnagramGuess(chatText, longAnagramWords[i].targetWord);
+          if (matched) {
+            solvedWordIndex = i;
+            break;
+          }
+        }
+      }
+
+      if (solvedWordIndex !== -1) {
+        const updatedLongAnagramWords = longAnagramWords.map((w, idx) => {
+          if (idx === solvedWordIndex) {
+            return { ...w, solved: true, winner: user };
+          }
+          return w;
+        });
+
+        const allSolved = updatedLongAnagramWords.every(w => w.solved);
+        
+        let roundMvp = user;
+        if (allSolved) {
+          const scores = {};
+          updatedLongAnagramWords.forEach(w => {
+            if (w.winner && w.winner.nickname) {
+              const nick = w.winner.nickname;
+              scores[nick] = (scores[nick] || 0) + 1;
+            }
+          });
+          
+          let maxScore = scores[user.nickname] || 0;
+          
+          for (const w of updatedLongAnagramWords) {
+            if (w.winner && w.winner.nickname) {
+              const nick = w.winner.nickname;
+              if (scores[nick] > maxScore) {
+                maxScore = scores[nick];
+                roundMvp = w.winner;
+              }
+            }
+          }
+        }
+        
+        const newStatus = allSolved ? 'won' : 'playing';
+
+        // Add win points to Long Anagram Leaderboard
+        const updatedLongAnagramLB = recordLongAnagramWin(user, updatedState);
+
+        updatedState = {
+          ...updatedState,
+          longAnagramWords: updatedLongAnagramWords,
+          longAnagramStatus: newStatus,
+          longAnagramWinner: allSolved ? roundMvp : updatedState.longAnagramWinner,
+          longAnagramLeaderboard: updatedLongAnagramLB,
+        };
+        stateChanged = true;
       }
     }
 
@@ -922,15 +1498,19 @@ export default function Overlay() {
   const isViewAll = viewType === 'all';
   const showWordle = viewType === 'wordle' || (isViewAll && (gameState.mode === 'wordle' || gameState.mode === 'dual'));
   const showAnagram = viewType === 'anagram' || (isViewAll && (gameState.mode === 'anagram' || gameState.mode === 'dual'));
+  const showLongWordle = viewType === 'longwordle' || (isViewAll && gameState.mode === 'longwordle');
+  const showLongAnagram = viewType === 'longanagram' || (isViewAll && gameState.mode === 'longanagram');
   
-  const showWordleLeaderboard = viewType === 'leaderboard-wordle' || viewType === 'leaderboard_wordle' || viewType === 'leaderboard' || viewType === 'leaderboards';
-  const showAnagramLeaderboard = viewType === 'leaderboard-anagram' || viewType === 'leaderboard_anagram' || viewType === 'leaderboard' || viewType === 'leaderboards';
+  const showWordleLeaderboard = viewType === 'leaderboard-wordle' || viewType === 'leaderboard_wordle' || ((viewType === 'leaderboard' || viewType === 'leaderboards') && gameState.mode !== 'longwordle' && gameState.mode !== 'longanagram');
+  const showAnagramLeaderboard = viewType === 'leaderboard-anagram' || viewType === 'leaderboard_anagram' || ((viewType === 'leaderboard' || viewType === 'leaderboards') && gameState.mode !== 'longwordle' && gameState.mode !== 'longanagram');
+  const showLongWordleLeaderboard = viewType === 'leaderboard-longwordle' || viewType === 'leaderboard_longwordle' || ((viewType === 'leaderboard' || viewType === 'leaderboards') && gameState.mode === 'longwordle');
+  const showLongAnagramLeaderboard = viewType === 'leaderboard-longanagram' || viewType === 'leaderboard_longanagram' || ((viewType === 'leaderboard' || viewType === 'leaderboards') && gameState.mode === 'longanagram');
 
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', padding: '1.5rem', overflow: 'hidden' }}>
       {/* Koneksi Peer Indicator (hanya terlihat jika di luar OBS / butuh debug) */}
       <div style={{ position: 'absolute', top: 5, right: 5, fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', pointerEvents: 'none' }}>
-        Kamar: {roomCode} {viewType !== 'all' ? `(Khusus ${viewType.toUpperCase()})` : (gameState.mode === 'dual' ? '(Mode Dual)' : '')}
+        Kamar: {roomCode} {viewType !== 'all' ? `(Khusus ${viewType.toUpperCase()})` : (gameState.mode === 'dual' ? '(Mode Dual)' : (gameState.mode === 'longwordle' ? '(Long Wordle)' : (gameState.mode === 'longanagram' ? '(Long Anagram)' : '')))}
       </div>
 
       <div style={{ 
@@ -958,6 +1538,23 @@ export default function Overlay() {
           </div>
         )}
 
+        {/* LONG WORDLE BOARD */}
+        {showLongWordle && (
+          <div style={{ position: 'relative', width: 'fit-content' }}>
+            <LongWordleBoard gameState={gameState} />
+
+            {longWordleWinState.winner && (
+              <WinCard 
+                show={longWordleWinState.show}
+                winner={longWordleWinState.winner} 
+                word={longWordleWinState.word} 
+                mode="longwordle" 
+                onExited={() => setLongWordleWinState((prev) => ({ ...prev, winner: null }))}
+              />
+            )}
+          </div>
+        )}
+
         {/* ANAGRAM BOARD */}
         {showAnagram && (
           <div style={{ position: 'relative', width: 'fit-content' }}>
@@ -975,6 +1572,23 @@ export default function Overlay() {
           </div>
         )}
 
+        {/* LONG ANAGRAM BOARD */}
+        {showLongAnagram && (
+          <div style={{ position: 'relative', width: 'fit-content' }}>
+            <LongAnagramBoard gameState={gameState} />
+
+            {longAnagramWinState.winner && (
+              <WinCard 
+                show={longAnagramWinState.show}
+                winner={longAnagramWinState.winner} 
+                word={longAnagramWinState.word} 
+                mode="longanagram" 
+                onExited={() => setLongAnagramWinState((prev) => ({ ...prev, winner: null }))}
+              />
+            )}
+          </div>
+        )}
+
         {/* WORDLE LEADERBOARD */}
         {showWordleLeaderboard && (
           <div style={{ position: 'relative', width: 'fit-content' }}>
@@ -986,6 +1600,20 @@ export default function Overlay() {
         {showAnagramLeaderboard && (
           <div style={{ position: 'relative', width: 'fit-content' }}>
             <LeaderboardBoard gameState={gameState} type="anagram" />
+          </div>
+        )}
+
+        {/* LONG WORDLE LEADERBOARD */}
+        {showLongWordleLeaderboard && (
+          <div style={{ position: 'relative', width: 'fit-content' }}>
+            <LeaderboardBoard gameState={gameState} type="longwordle" />
+          </div>
+        )}
+
+        {/* LONG ANAGRAM LEADERBOARD */}
+        {showLongAnagramLeaderboard && (
+          <div style={{ position: 'relative', width: 'fit-content' }}>
+            <LeaderboardBoard gameState={gameState} type="longanagram" />
           </div>
         )}
 

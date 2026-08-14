@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 
 export default function LeaderboardBoard({ 
   gameState, 
-  type = 'wordle', // 'wordle' | 'anagram' | 'all'
+  type = 'wordle', // 'wordle' | 'anagram' | 'longwordle' | 'all'
   customTitle = null, 
   customIcon = null,
   customAccent = null
@@ -16,6 +16,10 @@ export default function LeaderboardBoard({
     playersList = gameState?.wordleLeaderboard || [];
   } else if (type === 'anagram') {
     playersList = gameState?.anagramLeaderboard || [];
+  } else if (type === 'longwordle') {
+    playersList = gameState?.longWordleLeaderboard || [];
+  } else if (type === 'longanagram') {
+    playersList = gameState?.longAnagramLeaderboard || [];
   } else {
     playersList = gameState?.leaderboard || gameState?.wordleLeaderboard || [];
   }
@@ -25,10 +29,12 @@ export default function LeaderboardBoard({
   // Visual Theme per game type
   const isWordle = type === 'wordle';
   const isAnagram = type === 'anagram';
+  const isLongWordle = type === 'longwordle';
+  const isLongAnagram = type === 'longanagram';
 
-  const defaultIcon = isWordle ? '🟩' : (isAnagram ? '🟦' : '🏆');
-  const defaultTitle = isWordle ? 'Top Wordle' : (isAnagram ? 'Top Anagram' : 'Top Pemenang');
-  const defaultAccent = isWordle ? '#16a34a' : (isAnagram ? '#2563eb' : '#f59e0b');
+  const defaultIcon = isWordle ? '🟩' : (isAnagram ? '🟦' : (isLongWordle ? '🟪' : (isLongAnagram ? '🧩' : '🏆')));
+  const defaultTitle = isWordle ? 'Top Wordle' : (isAnagram ? 'Top Anagram' : (isLongWordle ? 'Top Long Wordle' : (isLongAnagram ? 'Top Long Anagram' : 'Top Pemenang')));
+  const defaultAccent = isWordle ? '#16a34a' : (isAnagram ? '#2563eb' : (isLongWordle ? '#7c3aed' : (isLongAnagram ? '#4f46e5' : '#f59e0b')));
 
   const icon = customIcon || defaultIcon;
   const title = customTitle || defaultTitle;
@@ -147,7 +153,7 @@ export default function LeaderboardBoard({
                   justifyContent: 'space-between',
                   padding: '0.3rem 0.6rem',
                   backgroundColor: isRankUp 
-                    ? (isWordle ? 'rgba(22, 163, 74, 0.45)' : (isAnagram ? 'rgba(37, 99, 235, 0.45)' : 'rgba(245, 158, 11, 0.4)'))
+                    ? (isWordle ? 'rgba(22, 163, 74, 0.45)' : (isAnagram ? 'rgba(37, 99, 235, 0.45)' : (isLongWordle ? 'rgba(124, 58, 237, 0.45)' : 'rgba(245, 158, 11, 0.4)')))
                     : (idx === 0 ? 'rgba(30, 41, 59, 0.8)' : 'rgba(15, 23, 42, 0.7)'),
                   borderRadius: '6px',
                   border: isRankUp 
@@ -245,8 +251,8 @@ export default function LeaderboardBoard({
             boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
           }}>
             <p style={{ color: 'white', fontSize: '0.8rem', fontWeight: '700', textShadow: '1px 1px 2px rgba(0,0,0,0.8)', margin: 0 }}>
-              Belum ada pemenang {isWordle ? 'Wordle' : (isAnagram ? 'Anagram' : '')}.<br />
-              <span style={{ fontSize: '0.72rem', color: isWordle ? '#86efac' : '#93c5fd' }}>Tebak kata di live chat!</span>
+              Belum ada pemenang {isWordle ? 'Wordle' : (isAnagram ? 'Anagram' : (isLongWordle ? 'Long Wordle' : ''))}.<br />
+              <span style={{ fontSize: '0.72rem', color: isWordle ? '#86efac' : (isAnagram ? '#93c5fd' : (isLongWordle ? '#c4b5fd' : '#fde68a')) }}>Tebak kata di live chat!</span>
             </p>
           </div>
         )}
