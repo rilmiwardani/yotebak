@@ -111,7 +111,7 @@ export default function Overlay() {
     longWordleTargetWord: 'abstinensi',
     longWordleGuesses: [{
       word: 'abstinensi',
-      user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=7c3aed&color=fff' }
+      user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=475569&color=fff' }
     }],
     longWordleStatus: 'playing', // 'playing' | 'won'
     longWordleWinner: null,
@@ -931,7 +931,7 @@ export default function Overlay() {
         longWordleTargetWord: longWord,
         longWordleGuesses: [{
           word: firstGuess,
-          user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=7c3aed&color=fff' }
+          user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=475569&color=fff' }
         }],
         longWordleStatus: 'playing',
         longWordleWinner: null,
@@ -993,7 +993,7 @@ export default function Overlay() {
     const firstGuess = (lastWordleWord && lastWordleWord.length === wordLength) ? lastWordleWord : getRandomHintWord(targets);
 
     const wordleGuesses = isResetWordle
-      ? [{ word: firstGuess, user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=4ca371&color=fff' } }]
+      ? [{ word: firstGuess, user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=475569&color=fff' } }]
       : currentState.guesses;
 
     const anagramList = isResetAnagram
@@ -1004,7 +1004,7 @@ export default function Overlay() {
       ? currentState.longWordleGuesses
       : [{
           word: getRandomLongHintWord(targetLongWordsRef.current),
-          user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=7c3aed&color=fff' }
+          user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=475569&color=fff' }
         }];
 
     const newGameState = {
@@ -1056,7 +1056,7 @@ export default function Overlay() {
         targetWord: wordleWord,
         guesses: [{
           word: firstGuess,
-          user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=4ca371&color=fff' }
+          user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=475569&color=fff' }
         }],
         wordleStatus: 'playing',
         wordleWinner: null,
@@ -1107,7 +1107,7 @@ export default function Overlay() {
         longWordleTargetWord: longWord,
         longWordleGuesses: [{
           word: firstGuess,
-          user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=7c3aed&color=fff' }
+          user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=475569&color=fff' }
         }],
         longWordleStatus: 'playing',
         longWordleWinner: null,

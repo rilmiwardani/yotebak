@@ -32,7 +32,7 @@ export default function LeaderboardBoard({
   const isLongWordle = type === 'longwordle';
   const isLongAnagram = type === 'longanagram';
 
-  const defaultIcon = isWordle ? '🟩' : (isAnagram ? '🟦' : (isLongWordle ? '🟪' : (isLongAnagram ? '🧩' : '🏆')));
+  const defaultIcon = isWordle ? '📝' : (isAnagram ? '🟦' : (isLongWordle ? '✨' : (isLongAnagram ? '🧩' : '🏆')));
   const defaultTitle = isWordle ? 'Top Wordle' : (isAnagram ? 'Top Anagram' : (isLongWordle ? 'Top Long Wordle' : (isLongAnagram ? 'Top Long Anagram' : 'Top Pemenang')));
   const defaultAccent = isWordle ? '#16a34a' : (isAnagram ? '#2563eb' : (isLongWordle ? '#7c3aed' : (isLongAnagram ? '#4f46e5' : '#f59e0b')));
 

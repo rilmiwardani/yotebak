@@ -61,7 +61,7 @@ export default function LongWordleBoard({ gameState }) {
         gap: '1rem'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <span style={{ fontSize: '1.2rem' }}>🟪</span>
+          <span style={{ fontSize: '1.2rem' }}>✨</span>
           <h2 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#5b21b6', margin: 0 }}>
             Long Wordle ({wordLength} Huruf)
           </h2>
