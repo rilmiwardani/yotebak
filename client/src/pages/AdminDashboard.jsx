@@ -841,6 +841,23 @@ export default function AdminDashboard() {
             </div>
 
             <div>
+              <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '600', fontSize: '0.78rem', color: '#6d28d9' }}>🟪 Baris Long Wordle:</label>
+              <select 
+                value={gameState?.longWordleMaxRows || 6} 
+                onChange={handleLongWordleMaxRowsChange}
+                style={{ padding: '0.4rem', borderRadius: '4px', border: '1px solid #c4b5fd', background: '#faf5ff', width: '100%', fontSize: '0.85rem' }}
+              >
+                <option value={3}>3 Baris</option>
+                <option value={4}>4 Baris</option>
+                <option value={5}>5 Baris</option>
+                <option value={6}>6 Baris</option>
+                <option value={7}>7 Baris</option>
+                <option value={8}>8 Baris</option>
+                <option value={10}>10 Baris</option>
+              </select>
+            </div>
+
+            <div>
               <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '600', fontSize: '0.78rem' }}>📝 Baris Anagram:</label>
               <select 
                 value={gameState?.anagramRows || anagramRows} 
