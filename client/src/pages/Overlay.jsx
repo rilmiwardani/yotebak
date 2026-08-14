@@ -1179,14 +1179,14 @@ export default function Overlay() {
   // Extract Long Wordle guess from chat text
   const extractLongWordleGuess = (chatText, length = 10) => {
     const directWord = sanitize(chatText);
-    if (directWord.length === length && (validLongWordsSetRef.current.has(directWord) || /^[a-z]+$/.test(directWord))) {
+    if (directWord.length === length && validLongWordsSetRef.current.has(directWord)) {
       return directWord;
     }
 
     const words = chatText.split(/\s+/);
     for (const w of words) {
       const cleaned = sanitize(w);
-      if (cleaned.length === length && (validLongWordsSetRef.current.has(cleaned) || /^[a-z]+$/.test(cleaned))) {
+      if (cleaned.length === length && validLongWordsSetRef.current.has(cleaned)) {
         return cleaned;
       }
     }
