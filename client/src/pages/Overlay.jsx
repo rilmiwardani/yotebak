@@ -452,6 +452,25 @@ export default function Overlay() {
     } catch (_) {}
   };
 
+  const loadPlayedLongWords = () => {
+    try {
+      const saved = localStorage.getItem('yotebak_played_long_words');
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr)) {
+          return new Set(arr);
+        }
+      }
+    } catch (_) {}
+    return new Set();
+  };
+
+  const savePlayedLongWords = (set) => {
+    try {
+      localStorage.setItem('yotebak_played_long_words', JSON.stringify(Array.from(set)));
+    } catch (_) {}
+  };
+
   const loadWords = async (length = 5) => {
     try {
       const suffix = length === 5 ? '' : `_${length}`;
