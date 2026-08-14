@@ -109,7 +109,10 @@ export default function Overlay() {
     anagramRows: 3,
     // Long Wordle state
     longWordleTargetWord: 'abstinensi',
-    longWordleGuesses: [],
+    longWordleGuesses: [{
+      word: 'abstinensi',
+      user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=7c3aed&color=fff' }
+    }],
     longWordleStatus: 'playing', // 'playing' | 'won'
     longWordleWinner: null,
     longWordLength: 10,
@@ -544,10 +547,15 @@ export default function Overlay() {
       const targets = await loadWords(initialLength);
       const longTargets = await loadLongWords(initialLongLength);
 
-      if (existingState && existingState.targetWord && existingState.anagramWords && existingState.anagramWords.length > 0) {
-        console.log("Synchronized with active room game state:", existingState.targetWord);
+      const view = (query.get('view') || query.get('type') || 'all').toLowerCase();
+      if (existingState && (existingState.targetWord || existingState.longWordleTargetWord || existingState.longAnagramWords?.length > 0)) {
+        console.log("Synchronized with active room game state:", existingState.targetWord || existingState.longWordleTargetWord);
         gameStateRef.current = { ...existingState, wordLength: initialLength, longWordLength: initialLongLength };
         setGameState(gameStateRef.current);
+      } else if (view === 'longwordle') {
+        initGame('longwordle', null, longTargets, null, initialLongLength);
+      } else if (view === 'longanagram') {
+        initGame('longanagram', null, longTargets, null, initialLongLength);
       } else {
         initGame('dual', null, targets, null, initialLength);
       }
@@ -892,7 +900,10 @@ export default function Overlay() {
       const longLen = overrideLength || currentState.longWordLength || 10;
       const targets = overrideTargets || targetLongWordsRef.current;
       const longWord = specificWord ? specificWord.toLowerCase() : drawLongTargetWord(targets);
-      const firstGuess = getRandomLongHintWord(targets);
+      const lastLongWord = currentState.longWordleTargetWord;
+      const firstGuess = (lastLongWord && lastLongWord.length === longLen) 
+        ? lastLongWord 
+        : getRandomLongHintWord(targets);
 
       const newGameState = {
         ...currentState,
@@ -970,6 +981,13 @@ export default function Overlay() {
       ? generateAnagramWords(targets, validAnagramRows)
       : currentState.anagramWords;
 
+    const longWordleGuesses = (currentState.longWordleGuesses && currentState.longWordleGuesses.length > 0)
+      ? currentState.longWordleGuesses
+      : [{
+          word: getRandomLongHintWord(targetLongWordsRef.current),
+          user: { nickname: 'Last Word', profilePic: 'https://ui-avatars.com/api/?name=Last+Word&background=7c3aed&color=fff' }
+        }];
+
     const newGameState = {
       ...currentState,
       mode: mode,
@@ -986,6 +1004,8 @@ export default function Overlay() {
       anagramStatus: isResetAnagram ? 'playing' : currentState.anagramStatus,
       anagramWinner: isResetAnagram ? null : currentState.anagramWinner,
       anagramRows: validAnagramRows,
+      // Long Wordle fields seed
+      longWordleGuesses: longWordleGuesses,
       // Pool tracking fields
       poolPlayed: playedWordsRef.current.size,
       poolTotal: targets.length || 1958,
